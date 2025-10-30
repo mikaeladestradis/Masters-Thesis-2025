@@ -1,0 +1,15 @@
+parnames = {1: 'I', 2: 'beta', 3: 'epsilon', 4: 'Vna', 5: 'gs', 6:'Vs', 7:'gl', 8:'Vl', 9:'a', 10:'m', 16:'alpha'}
+unames = {1:'v', 2:'w'}
+NDIM=2, IPS=9, IRS=0, ILP=1
+ICP=[1, 2, 13]
+NTST=100, NCOL=6, IAD=3, ISP=1, ISW=2, IPLT=0, NBC=0, NINT = 0
+NMX = 10000, NPR = 10000, MXBF = 10, IID = 2, ITMX = 8, ITNW = 7, NWTN = 3, JAC = 1
+EPSL = 1e-09, EPSU = 1e-09, EPSS = 1e-06
+DS=1e-03, DSMIN=1e-07, DSMAX=0.01, IADS = 1
+NPAR = 13, THL =  {}, THU =  {}
+UZSTOP = {1: [-0.05, 0.04], 2: [0, -2.5]}
+# homcont parameters to be fixed up later...
+NUNSTAB=1, NSTAB=2, IEQUIB=1, ITWIST=1, ISTART=5
+IREV = []
+IFIXED = [13]
+IPSI = [9,10]

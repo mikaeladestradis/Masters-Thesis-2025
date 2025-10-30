@@ -1,0 +1,14 @@
+#===============
+# AUTO Demo cusp
+#===============
+
+import sys
+sys.path.insert(0, '/Users/mikaeladestradis/Desktop/uni/project/autofiles/auto-07p/python')
+import auto  #type: ignore
+
+print("\n***Clean the directory***")
+
+auto.delete("run_type_2")
+auto.delete("run_type_3")
+auto.delete("run_type_1")
+auto.clean()

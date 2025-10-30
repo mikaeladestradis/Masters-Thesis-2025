@@ -1,0 +1,40 @@
+# first stuff
+
+# f = (i_dc-gna*minf(V)*(V-Vna)-gk*y*(V-VK)-gl*(V-Vl)-gsub*z*(V-Vsub))/c
+# y = phi(v, z)
+# dV/dt = dzf * g + dyf*h
+# dz/dt = - dvf* g
+
+dz/dt = - (((-gna*minf(V) -gk*phi(V,z) -gl -gsub*z -gna*(V-Vna)*(.5*(1/(cosh((V-beta_m)/gamma_m))^2)/gamma_m)))/c) * (phi_z*(zinf(V)-z)/tauz(V))
+
+dV/dt = ((-gsub*(V-Vsub))/c)*(phi_z*(zinf(V)-z)/tauz(V)) + ((-gk*(V-VK))/c)*(phi_y*(yinf(V)-phi(V, z))/tauy(V))
+
+minf(V)=.5*(1+tanh((V-beta_m)/gamma_m))
+
+# noting the desingularised problem is 'projected' onto the V-z plane, and we can write y as a graph over V and z. 
+phi(V, z) = (i_dc-gna*minf(V)*(V-Vna)-gl*(V-Vl)-gsub*z*(V-Vsub))/(gk*(V-VK))
+yinf(V)=.5*(1+tanh((V-beta_y)/gamma_y))
+tauy(V)=1/cosh((V-beta_y)/(2*gamma_y))
+
+# slow subthreshold stuff for z
+zinf(V)=.5*(1+tanh((V-beta_z)/gamma_z))
+tauz(V)=1/cosh((V-beta_z)/(2*gamma_z))
+
+# parameter values
+param i_dc=0
+param c=2
+param beta_m=-1.2, gamma_m=18
+param gna=20, Vna=50
+param beta_y=-10, gamma_y=10
+param gk=20, Vk=-100, phi_y=0.15
+param gl=2, Vl=-70
+param beta_z=-21, gamma_z=15
+# this is for outward current, for inward current change to gsub=3, Vsub=50, phi_z=0.5
+param gsub=2, Vsub=-100, phi_z=0.15
+
+# Initial conditions
+V(0) = -70
+z(0) = 0
+
+# numerics
+@ total=100,dt=0.1,xlo=0,xhi=1,ylo=-80,yhi=40,xp=z,yp=V

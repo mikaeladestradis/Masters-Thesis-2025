@@ -1,0 +1,17 @@
+dv/dt = I-MINF(v)*(V-Vna)-gs*z*(V-Vs)-gk*y*(V-Vk)-gl*(V-Vl)
+dy/dt = eps*(YINF(V)-y)*TAUY(v)
+dz/dt = eps*(ZINF(V)-z)*TAUZ(v)
+
+MINF(v) = 0.5*(1+tanh((kv*v-m)/a))
+YINF(v) = 0.5*(1+tanh((kv*v - beta_y)/alpha_y))
+ZINF(v) = 0.5*(1+tanh((kv*v - beta_z)/alpha_z))
+TAUY(v) = (cosh((kv*v - beta_y)/(2*alpha_y)))
+TAUZ(v) = (cosh((kv*v - beta_z)/(2*alpha_z)))
+
+param I=0, gs=0.15, Vs=0.5, eps=0.015
+param Vna=0.5, gk=1, Vk=-1, gl=0.1, Vl=-0.7
+param a=18, m=-1.2
+param alpha_y=10, beta_y=-10, beta_z=-21, alpha_z=15
+param kv=100
+
+@dt=0.01, total=1000, method=euler

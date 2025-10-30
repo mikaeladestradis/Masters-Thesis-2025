@@ -1,0 +1,10 @@
+parnames = {1:'I', 2:'gs', 3:'Vs', 4:'Vna', 5:'gk', 6:'Vk', 7:'gl', 8:'Vl', 9:'eps', 10:'a', 16:'m', 17:'gamma_y', 18:'beta_y', 19:'beta_z', 20:'gamma_z', 24:'kv'}
+unames = {1:'v', 2:'y', 3:'z'}
+NDIM=3, IPS=1, IRS=0, ILP=1
+ICP=[1, 13]
+NTST=15, NCOL=4, IAD=3, ISP=1, ISW=1, IPLT=0, NBC=0, NINT = 0
+NMX = 20000, NPR = 20000, MXBF = 20, IID = 2, ITMX = 8, ITNW = 7, NWTN = 3, JAC = 0
+EPSL = 1e-08, EPSU = 1e-08, EPSS = 1e-06
+DS=1e-05, DSMIN=1e-07, DSMAX=1e-03, IADS = 1
+NPAR = 24, THL =  {}, THU =  {}
+UZSTOP = {'I': [-0.05, 0.6]}

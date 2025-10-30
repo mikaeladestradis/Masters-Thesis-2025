@@ -1,0 +1,15 @@
+#===============
+# AUTO Demo cusp
+#===============
+
+import sys
+sys.path.insert(0, '/Users/mikaeladestradis/Desktop/uni/project/autofiles/auto-07p/python')
+from auto import *
+
+print("\n***Clean the directory***")
+
+delete("two_par_hopf_alt")
+delete("two_par_low_eps")
+delete("super_region")
+delete("start_lower_eps")
+clean()
