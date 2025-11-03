@@ -322,7 +322,67 @@ def movement_of_equilibria(filename, figurename, zoom_region):
     plt.savefig(figurename)
     plt.close()
 
+def plot_frequency(filename, figurename):
+    data_eq = []
+    data_periodic = []
+    with open(filename) as f:
+        for line in f:
+            parts = line.strip().split()
+            if parts and parts[0] == '1':
+                try:
+                    data_eq.append([float(x) for x in parts])
+                except ValueError:
+                    row = []
+                    for x in parts:
+                        try:
+                            row.append(float(x))
+                        except ValueError:
+                            row.append(x)
+                    data_eq.append(row)
+            if parts and parts[0] == '-8':
+                try:
+                    data_periodic.append([float(x) for x in parts])
+                except ValueError:
+                    row = []
+                    for x in parts:
+                        try:
+                            row.append(float(x))
+                        except ValueError:
+                            row.append(x)
+                    data_periodic.append(row)
+            if parts and parts[0] == '-29':
+                try:
+                    data_periodic.append([float(x) for x in parts])
+                except ValueError:
+                    row = []
+                    for x in parts:
+                        try:
+                            row.append(float(x))
+                        except ValueError:
+                            row.append(x)
+                    data_periodic.append(row)
+
+
+    # Adjust column names to your file
+    columns = ["RUN" ,"PT", "TY", "LAB", "I", "L2NORM", "max v", "max w", "period", "min v", "stability"]
+    df_periodic = pd.DataFrame(data_periodic, columns=columns)
+    df_periodic["freq"] = 1/(df_periodic["period"])
+
+    unstable_limit_cycle = df_periodic[df_periodic['stability'] == 1]
+    stable_limit_cycle = df_periodic[df_periodic['stability'] == 2]
+
+    # Plot I vs frequency
+    plt.figure(figsize=(7,5))
+    plt.scatter(stable_limit_cycle["freq"], stable_limit_cycle["I"], color='green', label="stable periodic branch")
+    plt.plot(unstable_limit_cycle["freq"], unstable_limit_cycle["I"], color='blue', label="unstable periodic branch")
+
+    plt.xlabel("I (non-dimensional stimulus current)")
+    plt.ylabel("frequency")
+    plt.title(figurename)
+    plt.legend()
+    plt.grid(True)
+    plt.savefig(figurename)
+    plt.close()
+
 if __name__ == "__main__":
-    plot_two_param("b.two_par_cusp", "Cusp Bifurcation")
-    plot_two_param("b.two_par_hopf", "Bautin Bifurcation")
-    plot_two_param("b.two_par", "Two Parameter Bifurcation Diagram")
+    plot_frequency()

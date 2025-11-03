@@ -43,7 +43,7 @@ SUBROUTINE FUNC(NDIM,U,ICP,PAR,IJAC,F,DFDU,DFDP)
   z = U(2)
 
   i_dc = PAR(1)       !0.0d0
-  gsub = PAR(2)       !2.0d0
+  gsub = PAR(2)       !8.0d0
   Vsub = PAR(3)       !-100.0d0
   Vna = PAR(4)        !50.0d0
   gk = PAR(5)         !20.0d0
@@ -51,7 +51,7 @@ SUBROUTINE FUNC(NDIM,U,ICP,PAR,IJAC,F,DFDU,DFDP)
   gl = PAR(7)         !2.0d0
   Vl = PAR(8)         !-70.0d0
   c = PAR(9)          !2.0d0
-  phi_y = PAR(10)     !0.15d0
+  phi_y = PAR(10)     !0.0015d0
   beta_m = PAR(16)    !-1.2d0
   gamma_m = PAR(17)   !18.0d0
   gamma_y = PAR(18)   !10.0d0
@@ -59,7 +59,7 @@ SUBROUTINE FUNC(NDIM,U,ICP,PAR,IJAC,F,DFDU,DFDP)
   beta_z = PAR(20)    !-21.0d0
   gamma_z = PAR(24)   !15.0d0
   gna = PAR(25)       !20.0d0
-  phi_z = PAR(26)     !0.15d0
+  phi_z = PAR(26)     !0.0015d0
 
   F(1) = ((-gsub*(V-Vsub))/c)*(phi_z*(zinf(V)-z)/tauz(V)) + ((-gk*(V-VK))/c)*(phi_y*(yinf(V)-phi(V, z))/tauy(V))
   F(2) = - (((-gna*minf(V) -gk*phi(V,z) -gl -gsub*z -gna*(V-Vna)*(.5*(1/(cosh((V-beta_m)/gamma_m))**2)/gamma_m)))/c) * (phi_z*(zinf(V)-z)/tauz(V))
@@ -76,15 +76,15 @@ SUBROUTINE STPNT(NDIM,U,PAR,T)
   DOUBLE PRECISION, INTENT(IN) :: T
 
 ! Initialize the equation parameters
-  PAR(1:10) = (/0.0d0, 7.0d0, -100.0d0, 50.0d0, 20.0d0, -100.0d0, 2.0d0, -70.0d0, 2.0d0, 0.15d0 /)
+  PAR(1:10) = (/0.0d0, 8.0d0, -100.0d0, 50.0d0, 20.0d0, -100.0d0, 2.0d0, -70.0d0, 2.0d0, 0.0015d0 /)
   PAR(16:20) = (/ -1.2d0, 18.0d0, 10.0d0,-10.0d0, -21.0d0 /)
   PAR(24) = 15.0d0
   PAR(25) = 20.0d0 
-  PAR(26) = 0.15d0
+  PAR(26) = 0.0015d0
 
 ! Initialize the solution
-  U(1) = -69.5655d0
-  U(2) = 0.001538d0
+  U(1) = -69.59233093261719d0
+  U(2) = 0.001554027083329856d0
    
 END SUBROUTINE STPNT
 

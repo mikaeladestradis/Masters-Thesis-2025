@@ -55,7 +55,7 @@ except:
     hb2 = auto.load(one_par_type2('HB1'))
 
     # compute periodic solutions.
-    one_par_type2 = one_par_type2 + auto.run(hb2,IPS=2,ICP=[1,11,12,13],ILP=1,NPR=2000000, NMX=2000000)
+    one_par_type2 = one_par_type2 + auto.run(hb2,IPS=2,ICP=[1,11,12,13],ILP=1,NPR=20000000, NMX=20000000)
 
     # Save
     auto.save(one_par_type2,'one_par_type2')
@@ -72,7 +72,7 @@ except:
     hb3 = auto.load(one_par_type3('HB1'))
 
     #compute periodic solutions.
-    one_par_type3 = one_par_type3 + auto.run(hb3,IPS=2,ICP=[1, 11, 12, 13], ILP=1, NMX=200000, NPR=200000)
+    one_par_type3 = one_par_type3 + auto.run(hb3,IPS=2,ICP=[1, 11, 12, 13], ILP=1, NMX=2000000, NPR=2000000)
 
     auto.save(one_par_type3,'one_par_type3')
 
@@ -146,7 +146,7 @@ auto.save(three_trans, "three_trans")
 hb_three_trans = auto.load(three_trans('HB1'))
 
 # compute periodic solutions.
-three_trans = three_trans + auto.run(hb_three_trans, IPS=2, ICP=[1,11,12,13], ILP=1, NPR=9000000, NMX=9000000)
+three_trans = three_trans + auto.run(hb_three_trans, IPS=2, ICP=[1,11,12,13], ILP=1, NPR=90000000, NMX=90000000)
 
 # Save
 auto.save(three_trans,'three_trans')

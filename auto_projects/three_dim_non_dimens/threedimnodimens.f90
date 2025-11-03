@@ -94,7 +94,7 @@ SUBROUTINE STPNT(NDIM,U,PAR,T)
   PAR(6) = -1
   PAR(7) = 0.1d0
   PAR(8) = -0.7d0
-  PAR(9) = 0.015d0
+  PAR(9) = 0.00015d0
   PAR(10) = 18
   PAR(16) = -1.2d0
   PAR(17) = 10

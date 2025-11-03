@@ -1,16 +1,14 @@
 import sympy as sp
 import numpy as np
 import matplotlib.pyplot as plt
-from functools import partial
-import taylor as T
 import math
 import util
 from scipy.integrate import solve_ivp
 from systems.system import System
+import two_dimensional_system_pars
 
 points = 10000
 kv=100
-I_stim = 0
 eq_guesses = [-80/kv, -20/kv, -10/kv, 20/kv, 0/kv]
 fold_guesses = [10/kv, -40/kv]
 
@@ -23,19 +21,9 @@ dvdt = (I - ((1/2)*(1+sp.tanh((kv*v-m)/gamma_m))*(kv*v - Vna)) - gs*w*(kv*v - Vs
 dwdt = eps*(winf-w)*(sp.cosh((kv*v - beta)/(2*gamma_b)))
 phi = ((I - (1/2)*(1+sp.tanh((kv*v-m)/gamma_m))*(kv*v - Vna) - gl*(kv*v - Vl)))/(gs*(kv*v - Vs))
 
-params = {
-    'I': I_stim,
-    'epsilon': 0.015,  # phi_w*c/gfast ~ 0.15*2/20
-    'beta': -21,
-    'V_na': 50,
-    's': 1,
-    'V_s': -100, 
-    'l': 0.1,
-    'V_l': -70,
-    'm': -1.2,
-    'gamma_m': 18,
-    'gamma_b': 10,
-}
+params = two_dimensional_system_pars.type_3_start
+
+I_stim = params.get("I")
 
 sympy_params = {sp.symbols(k): v for k, v in params.items()}
 exclude = ['I', 'beta', 'epsilon']
@@ -203,37 +191,37 @@ class NonDimensionalTwoDim(System):
         plt.plot(plot_phi_type(v_vals, 80/(20), 0), v_vals, color='black')
         plt.plot(plot_winf_type(v_vals, 80/(20), 0), v_vals, color='green')
         mini_nullclines()
-        plt.savefig("pics/side_by_side/80,0")
+        plt.savefig("pics/2 dimensional system/side_by_side/80,0")
         plt.close()
 
         plt.plot(plot_phi_type(v_vals, 40/(20), 0), v_vals, color='black')
         plt.plot(plot_winf_type(v_vals, 40/(20), 0), v_vals, color='green')
         mini_nullclines()
-        plt.savefig("pics/side_by_side/40,0")
+        plt.savefig("pics/2 dimensional system/side_by_side/40,0")
         plt.close()
 
         plt.plot(plot_phi_type(v_vals, 0, 0), v_vals, color='black')
         plt.plot(plot_winf_type(v_vals, 0, 0), v_vals, color='green')
         mini_nullclines()
-        plt.savefig("pics/side_by_side/0,0")
+        plt.savefig("pics/2 dimensional system/side_by_side/0,0")
         plt.close()
 
         plt.plot(plot_phi_type(v_vals, 80/(20), -13), v_vals, color='black')
         plt.plot(plot_winf_type(v_vals, 80/(20), -13), v_vals, color='green')   
         mini_nullclines()    
-        plt.savefig("pics/side_by_side/80,-13")
+        plt.savefig("pics/2 dimensional system/side_by_side/80,-13")
         plt.close()
         
         plt.plot(plot_phi_type(v_vals, 40/(20), -13), v_vals, color='black')
         plt.plot(plot_winf_type(v_vals, 40/(20), -13), v_vals, color='green')
         mini_nullclines()
-        plt.savefig("pics/side_by_side/40,-13")
+        plt.savefig("pics/2 dimensional system/side_by_side/40,-13")
         plt.close()
 
         plt.plot(plot_phi_type(v_vals, 0, -13), v_vals, color='black')
         plt.plot(plot_winf_type(v_vals, 0, -13), v_vals, color='green')    
         mini_nullclines()  
-        plt.savefig("pics/side_by_side/0,-13")
+        plt.savefig("pics/2 dimensional system/side_by_side/0,-13")
         plt.close()
 
         # plots for 'type 3'

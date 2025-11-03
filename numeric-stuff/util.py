@@ -32,12 +32,13 @@ def find_fold_lines(fold_function, v_vals, z_vals, variables, stimulus, params):
     v_fold = []
     z_fold = []
     for i, j in itertools.product(v_vals.tolist(), z_vals.tolist()):
-        if math.isclose(fold_surface(i,j), 0, abs_tol = 0.0011):
+        if math.isclose(fold_surface(i,j), 0, abs_tol = 0.001):
             v_fold.append(i)
             z_fold.append(j)
             if j == z_vals[-1]:
                 z_fold[-1] = np.nan
                 v_fold[-1] = np.nan
+    #alternatively, try using the contour with level == 0 method. 
     
     return [v_fold, z_fold]
 
