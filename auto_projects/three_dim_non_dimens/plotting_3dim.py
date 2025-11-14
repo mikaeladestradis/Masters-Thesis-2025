@@ -88,19 +88,33 @@ def plot_one_param(filename, figurename):
     plt.plot(stable_limit_cycle["I"], stable_limit_cycle['max v'], color='black')
     plt.plot(unstable_limit_cycle["I"], unstable_limit_cycle["min v"], color='black', label="unstable periodic branch", ls = '--')
     plt.plot(unstable_limit_cycle["I"], unstable_limit_cycle['max v'], color='black', ls = '--')
+    
+    hopf_I = float(hopf["I"])
+
+    mask = stable_limit_cycle["I"] <= hopf_I
+
+    plt.fill_between(
+        stable_limit_cycle["I"][mask],
+        stable_limit_cycle["min v"][mask],
+        stable_limit_cycle["max v"][mask],
+        color='black',
+        alpha=0.2, label="bi-stable region"
+    )
+    # plt.fill_between(stable_limit_cycle["I"], stable_limit_cycle["min v"], stable_limit_cycle["max v"], color='black', alpha=0.2)
 
     #plot the hopf point
     if not hopf.empty:
-        plt.scatter(hopf["I"], hopf["v"], color="red", marker="o", s=20, label="Hopf Bifurcation", zorder=10)
+        plt.scatter(hopf["I"], hopf["v"], color="red", marker="o", s=40, label="Hopf bifurcation", zorder=10)
     if not saddle_nodes.empty:
-        plt.scatter(saddle_nodes["I"], saddle_nodes["v"], color="black", marker="x", s=20, label="Saddle Node Bifurcation", zorder=10)
+        plt.scatter(saddle_nodes["I"], saddle_nodes["v"], color="black", marker="x", s=40, label="saddle node bifurcation", zorder=10)
 
-    plt.xlabel("I (non-dimensional stimulus current)")
-    plt.ylabel("v (non-dimensional voltage)")
+    plt.xlabel("I")
+    plt.ylabel("v")
     plt.title(figurename)
     plt.legend()
     plt.grid(True)
-    plt.savefig(figurename)
+    # plt.savefig(figurename)
+    plt.show()
     plt.close()
 
 
@@ -132,7 +146,7 @@ def plot_two_param(filename, figurename, axes, ylabel):
                         except ValueError:
                             row.append(x)
                     data_hopf.append(row)
-            if parts and (filename == "b.two_par_hopf" or filename == "b.two_par_hopf_alt") and parts[0] == '2':
+            if parts and (filename == "b.two_par_hopf_curves" or filename == "b.two_par_hopf_alt") and parts[0] == '2':
                 try:
                     data_hopf.append([float(x) for x in parts])
                 except ValueError:
@@ -167,6 +181,7 @@ def plot_two_param(filename, figurename, axes, ylabel):
         bt = df_saddle[(df_saddle["TY"] == -21) | (df_saddle["TY"] == -31)]
     if not df_hopf.empty:
         bt = df_hopf[(df_hopf["TY"] == -21) | (df_hopf["TY"] == -31)]
+        zh = df_hopf[df_hopf["TY"] == -33]
     cusp = df_saddle[df_saddle["TY"] == -22]
     gh = df_hopf[df_hopf["TY"] == -32]
 
@@ -176,22 +191,27 @@ def plot_two_param(filename, figurename, axes, ylabel):
         plt.plot(df_saddle["I"], df_saddle["gsub"], label="curve of saddle nodes", color="red")
     if not bt.empty:
         plt.scatter(bt["I"], bt["gsub"], color="black", label="BT", zorder=10)
+    if not zh.empty:
+        plt.scatter(zh["I"], zh["gsub"], color="green", label="ZH", zorder=11)
     if not cusp.empty:
-        plt.scatter(cusp["I"], cusp["gsub"], color='purple', label="Cusp Point", zorder=10)
+        plt.scatter(cusp["I"], cusp["gsub"], color='purple', label="cusp bifurcation", zorder=10)
     if not df_hopf.empty:
         df_hopf.loc[df_hopf['TY'] == -34, ["I","v"]] = np.nan
-        plt.plot(df_hopf["I"], df_hopf["gsub"], color='blue', label="curve of hopf bifurcations")
+        plt.plot(df_hopf["I"], df_hopf["gsub"], color='blue', label="Hopf curve")
     if not gh.empty:
         plt.scatter(gh["I"], gh["gsub"], color="orange", label="GH", zorder=10)
-    plt.xlabel("I (non-dimensional stimulus current)")
+    plt.plot([axes[0], axes[1]],[0.36, 0.36], ls='--', color='grey')
+    # plt.fill_between(np.linspace(axes[0], axes[1], len(df_hopf["I"])), np.full(len(df_hopf["I"]), 0.36), np.full(len(df_hopf["I"]), axes[3]), color='black', alpha=0.2, label="Class 3 region")
+    plt.xlabel("I")
     plt.ylabel(ylabel)
     plt.title(figurename)
-    plt.legend()
+    plt.legend(loc='upper left')
     plt.grid(True)
     # to change for 'zoomed in' plots etc.
     plt.ylim(axes[2], axes[3])
     plt.xlim(axes[0], axes[1])
-    plt.savefig(figurename)
+    # plt.savefig(figurename)
+    plt.show()
     plt.close()
 
 def plot_one_param_zoom(filename, figurename, zoom_region, zoom_periodic=False):
@@ -292,4 +312,8 @@ def plot_one_param_zoom(filename, figurename, zoom_region, zoom_periodic=False):
     plt.savefig(figurename)
     plt.close()
 
-# if __name__ == "__main__":
+if __name__ == "__main__":
+    plot_one_param("b.after_BT", "After the Bogdanov-Takens bifurcation")
+    plot_one_param("b.after_BT", "After the Bogdanov-Takens bifurcation")
+    plot_one_param("b.after_BT", "After the Bogdanov-Takens bifurcation")
+    plot_one_param("b.after_Cusp", "After the Bogdanov-Takens bifurcation")

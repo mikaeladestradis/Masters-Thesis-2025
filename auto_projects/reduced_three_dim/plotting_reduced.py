@@ -49,6 +49,7 @@ def plot_one_param(filename, figurenames, zoom_type2=False, zoom_type3=False):
 
     hopf = df_eq[df_eq["TY"] == 3]
     saddle_nodes = df_eq[df_eq["TY"] == 2]
+    fsn = df_eq[df_eq["TY"] == 1]
 
     original_eq = df_eq[df_eq["RUN"] != 2]
     stable_eq_og = original_eq[original_eq["stability"] == 2]
@@ -73,19 +74,21 @@ def plot_one_param(filename, figurenames, zoom_type2=False, zoom_type3=False):
     # unstable_eq_fs.loc[unstable_eq_fs['TY'] == 3, ["I","v"]] = np.nan
 
     plt.figure(figsize=(7,5))
-    plt.plot(stable_eq_og["I"]/(100*20), stable_eq_og["v"]/100, label="stable equilibria", color="blue")
-    plt.plot(unstable_eq_og["I"]/(100*20), unstable_eq_og["v"]/100, label="unstable equilibria", color="blue", ls='--')
-    plt.plot(stable_eq_fs["I"]/(100*20), stable_eq_fs["v"]/100, label="stable FS", color="red")
-    plt.plot(unstable_eq_fs["I"]/(100*20), unstable_eq_fs["v"]/100, label="unstable FS", color="red", ls='--')
+    plt.plot(stable_eq_og["I"]/(100*20), stable_eq_og["v"]/100, label="stable EQ", color="red")
+    plt.plot(unstable_eq_og["I"]/(100*20), unstable_eq_og["v"]/100, label="unstable EQ", color="red", ls='--')
+    plt.plot(stable_eq_fs["I"]/(100*20), stable_eq_fs["v"]/100, label="stable FS", color="green")
+    plt.plot(unstable_eq_fs["I"]/(100*20), unstable_eq_fs["v"]/100, label="unstable FS", color="green", ls='--')
     
     #plot the hopf point
     if not hopf.empty:
-        plt.scatter(hopf["I"]/(100*20), hopf["v"]/100, color="red", marker="o", s=20, label="Hopf Bifurcation", zorder=10)
+        plt.scatter(hopf["I"]/(100*20), hopf["v"]/100, color="red", marker="o", s=20, label="Hopf bifurcation", zorder=10)
     if not saddle_nodes.empty:
-        plt.scatter(saddle_nodes["I"]/(100*20), saddle_nodes["v"]/100, color="black", marker="x", s=20, label="Saddle Node Bifurcation", zorder=10)
-
-    plt.xlabel("I (non-dimensional stimulus current)")
-    plt.ylabel("v (non-dimensional voltage)")
+        plt.scatter(saddle_nodes["I"]/(100*20), saddle_nodes["v"]/100, color="black", marker="x", s=20, label="saddle node bifurcation", zorder=10)
+    if not fsn.empty:
+        plt.scatter(fsn["I"]/(100*20), fsn["v"]/100, color="black", marker="o", s=20, label="FSN type II", zorder=10)
+    
+    plt.xlabel("I")
+    plt.ylabel("v")
     plt.title(figurenames[0])
     plt.legend()
     plt.grid(True)
@@ -93,25 +96,30 @@ def plot_one_param(filename, figurenames, zoom_type2=False, zoom_type3=False):
 
     # now, we also want to plot in z.
     plt.figure(figsize=(7,5))
-    plt.plot(stable_eq_og["I"]/(100*20), stable_eq_og["z"], label="stable equilibria", color="blue")
-    plt.plot(unstable_eq_og["I"]/(100*20), unstable_eq_og["z"], label="unstable equilibria", color="blue", ls='--')
-    plt.plot(stable_eq_fs["I"]/(100*20), stable_eq_fs["z"], label="stable FS", color="red")
-    plt.plot(unstable_eq_fs["I"]/(100*20), unstable_eq_fs["z"], label="unstable FS", color="red", ls='--')
+    plt.plot(stable_eq_og["I"]/(100*20), stable_eq_og["z"], label="stable EQ", color="red")
+    plt.plot(unstable_eq_og["I"]/(100*20), unstable_eq_og["z"], label="unstable EQ", color="red", ls='--')
+    plt.plot(stable_eq_fs["I"]/(100*20), stable_eq_fs["z"], label="stable FS", color="green")
+    plt.plot(unstable_eq_fs["I"]/(100*20), unstable_eq_fs["z"], label="unstable FS", color="green", ls='--')
     
     #plot the hopf point
     if not hopf.empty:
-        plt.scatter(hopf["I"]/(100*20), hopf["z"], color="red", marker="o", s=20, label="Hopf Bifurcation", zorder=10)
+        plt.scatter(hopf["I"]/(100*20), hopf["z"], color="red", marker="o", s=20, label="Hopf bifurcation", zorder=10)
     if not saddle_nodes.empty:
-        plt.scatter(saddle_nodes["I"]/(100*20), saddle_nodes["z"], color="black", marker="x", s=20, label="Saddle Node Bifurcation", zorder=10)
+        plt.scatter(saddle_nodes["I"]/(100*20), saddle_nodes["z"], color="black", marker="x", s=20, label="saddle node bifurcation", zorder=10)
+    if not fsn.empty:
+        plt.scatter(fsn["I"]/(100*20), fsn["z"], color="black", marker="o", s=20, label="FSN type II", zorder=10)
+    plt.plot([0.041175, 0.041175], [-0.25, 0.75], ls='--', color='black', label="three spikes observed")
+    plt.axvspan(0.0285, 0.04275, alpha=0.3, color='black', zorder=-1)
 
-    plt.xlabel("I (non-dimensional stimulus current)")
-    plt.ylabel("z (non-dimensional gating term)")
+    plt.xlabel("I")
+    plt.ylabel("z")
     plt.title(figurenames[1])
     plt.legend()
     plt.grid(True)
     plt.xlim(0, 0.08)
-    plt.ylim(-1, 1)
-    plt.savefig(figurenames[1])
+    plt.ylim(-0.25, 0.75)
+    # plt.savefig(figurenames[1])
+    plt.show()
     plt.close()
 
     if zoom_type2:
@@ -192,5 +200,7 @@ def plot_one_param(filename, figurenames, zoom_type2=False, zoom_type3=False):
         plt.ylim(0.05, 0.2)
         plt.savefig(figurenames[2])
         plt.close()
-# todo: I just want to remove the first/last point from each branch when it switches from stable to unstable and otherwise.
-# tonights job...
+
+
+if __name__ == "__main__":
+    plot_one_param("b.run_type_3", ["Bifurcation of Folded Singularity and True Equilibrium in v", "Region at which more than one transient spike can be observed"])
