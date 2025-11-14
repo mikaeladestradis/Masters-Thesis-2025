@@ -1,8 +1,9 @@
 import matplotlib.pyplot as plt
+from matplotlib.ticker import FormatStrFormatter
 import pandas as pd
 import numpy as np
 
-def plot_one_param(filename, figurename):
+def plot_one_param(filename, figurename, mask=False):
     data_eq = []
     data_periodic = []
     with open(filename) as f:
@@ -30,7 +31,18 @@ def plot_one_param(filename, figurename):
                         except ValueError:
                             row.append(x)
                     data_periodic.append(row)
-            if parts and parts[0] == '-29':
+            if parts and (parts[0] == '8' or parts[0] == '-33' or parts[0] =='-34' or parts[0] == '33'):
+                try:
+                    data_periodic.append([float(x) for x in parts])
+                except ValueError:
+                    row = []
+                    for x in parts:
+                        try:
+                            row.append(float(x))
+                        except ValueError:
+                            row.append(x)
+                    data_periodic.append(row)
+            if parts and (parts[0] == '-29' or parts[0] == '29'):
                 try:
                     data_periodic.append([float(x) for x in parts])
                 except ValueError:
@@ -48,26 +60,35 @@ def plot_one_param(filename, figurename):
     periodic = ["RUN" ,"PT", "TY", "LAB", "I", "L2NORM", "max v", "max w", "period", "min v", "stability"]
     df_eq = pd.DataFrame(data_eq, columns=columns)
     df_periodic = pd.DataFrame(data_periodic, columns=periodic)
+    if mask:
+        mask_p = (df_periodic['I'] >= 0.018) & (df_periodic['I'] <= 0.02)
+
+        df_periodic['I'] = df_periodic['I'].where(mask_p, np.nan)
+
+        mask_e = (df_eq['I'] >= 0.018) & (df_eq['I'] <= 0.02)
+
+        df_eq['I'] = df_eq['I'].where(mask_e, np.nan)
 
     hopf = df_eq[df_eq["TY"] == 3]
     saddle_nodes = df_eq[df_eq["TY"] == 2]
+    homoclinic = df_periodic[df_periodic['TY'] == 9]
 
     stable_eq = df_eq[df_eq["stability"] == 2]
     stable_eq = stable_eq.copy()
     stable_eq.loc[stable_eq['TY'] == 2, ["I","v"]] = np.nan
 
     unstable_eq = df_eq[df_eq['stability'] != 2]
-    unstable_eq = unstable_eq.copy()
-    unstable_eq.loc[unstable_eq['TY'] == 2, ["I","v"]] = np.nan
 
     # I want to edit this so that if there is a difference between the start and stuff
     # rather than looking for the branch point because it is a little off, maybe we make like after the branch point the next five are nan or somethig??
     unstable_limit_cycle = df_periodic[df_periodic['stability'] == 1]
     unstable_limit_cycle = unstable_limit_cycle.copy()
     unstable_limit_cycle.loc[unstable_limit_cycle['TY'] == 5, ["I","max v", "min v"]] = np.nan
+    unstable_limit_cycle.loc[unstable_limit_cycle['TY'] == 9, ["I","max v", "min v"]] = np.nan
 
     stable_limit_cycle = df_periodic[df_periodic['stability'] == 2]
     stable_limit_cycle = stable_limit_cycle.copy()
+    stable_limit_cycle.loc[stable_limit_cycle['TY'] == 9, ["I","max v", "min v"]] = np.nan
 
     idxs = stable_limit_cycle.index[stable_limit_cycle['TY'] == 5].tolist()
 
@@ -77,33 +98,44 @@ def plot_one_param(filename, figurename):
 
         stable_limit_cycle.loc[affected, ["I", "max v", "min v"]] = np.nan
 
+
     # Plot min v and max v vs I
     plt.figure(figsize=(7,5))
     plt.plot(stable_eq["I"], stable_eq["v"], label="stable equilibria", color="blue")
     plt.plot(unstable_eq["I"], unstable_eq["v"], label="unstable equilibria", color="red", ls = '--')
-    plt.plot(stable_limit_cycle["I"], stable_limit_cycle["min v"], color='black', label="stable periodic branch")
-    plt.plot(stable_limit_cycle["I"], stable_limit_cycle['max v'], color='black')
-    plt.plot(unstable_limit_cycle["I"], unstable_limit_cycle["min v"], color='black', label="unstable periodic branch", ls = '--')
-    plt.plot(unstable_limit_cycle["I"], unstable_limit_cycle['max v'], color='black', ls = '--')
+    plt.plot(stable_limit_cycle["I"], stable_limit_cycle["min v"], color='black')
+    plt.plot(stable_limit_cycle["I"], stable_limit_cycle['max v'], color='black', label="stable periodic branch")
+    plt.fill_between(stable_limit_cycle["I"], stable_limit_cycle["min v"], stable_limit_cycle["max v"], color='black', alpha=0.2, label="oscillatory region")
 
-    #plot the hopf point
+    # plt.plot(unstable_limit_cycle["I"], unstable_limit_cycle["min v"], color='black', label="unstable periodic branch", ls='--')
+    # plt.plot(unstable_limit_cycle["I"], unstable_limit_cycle['max v'], color='black', ls='--')
+    if not homoclinic.empty:
+        plt.scatter(homoclinic["I"], homoclinic["max v"], color='green', marker='o', label= "homoclinic bifurcation", zorder=10)
+        plt.scatter(homoclinic["I"], homoclinic["min v"], color='green', marker='o', zorder=10)
+        # plt.plot([homoclinic["I"], homoclinic["I"]], [-0.9, 0.5], ls='--')
+
+    # plot the hopf and saddle node points
     if not hopf.empty:
-        plt.scatter(hopf["I"], hopf["v"], color="red", marker="o", s=20, label="Hopf Bifurcation", zorder=10)
+        plt.scatter(hopf["I"], hopf["v"], color="red", marker="o", label="Hopf bifurcation", zorder=10)
     if not saddle_nodes.empty:
-        plt.scatter(saddle_nodes["I"], saddle_nodes["v"], color="black", marker="x", s=20, label="Saddle Node Bifurcation", zorder=10)
+        plt.scatter(saddle_nodes["I"], saddle_nodes["v"], color="black", marker="o", label="saddle node bifurcation", zorder=10)
 
-    plt.xlabel("I (non-dimensional stimulus current)")
-    plt.ylabel("v (non-dimensional voltage)")
+    plt.xlabel(r"$I$")
+    plt.ylabel(r"$v$")
+    plt.xlim(-0.03, 0.5)
+    plt.ylim(-0.9, 0.5)
     plt.title(figurename)
-    plt.legend()
+    plt.legend(loc="upper left")
     plt.grid(True)
-    plt.savefig(figurename)
+    plt.savefig("final_figures/" + figurename)
+    plt.show()
     plt.close()
 
 
-def plot_two_param(filename, figurename):
+def plot_two_param(filename, figurename, zoom=False, zoom_args=[]):
     data_saddle = []
     data_hopf = []
+    data_homoclinic = []
     with open(filename) as f:
         for line in f:
             parts = line.strip().split()
@@ -119,16 +151,28 @@ def plot_two_param(filename, figurename):
                             row.append(x)
                     data_saddle.append(row)
             if parts and parts[0] == '8':
-                try:
-                    data_hopf.append([float(x) for x in parts])
-                except ValueError:
-                    row = []
-                    for x in parts:
-                        try:
-                            row.append(float(x))
-                        except ValueError:
-                            row.append(x)
-                    data_hopf.append(row)
+                if (len(parts) == 11):
+                    try:
+                        data_homoclinic.append([float(x) for x in parts])
+                    except ValueError:
+                        row = []
+                        for x in parts:
+                            try:
+                                row.append(float(x))
+                            except ValueError:
+                                row.append(x)
+                        data_homoclinic.append(row)
+                else:
+                    try:
+                        data_hopf.append([float(x) for x in parts])
+                    except ValueError:
+                        row = []
+                        for x in parts:
+                            try:
+                                row.append(float(x))
+                            except ValueError:
+                                row.append(x)
+                        data_hopf.append(row)
             if parts and parts[0] == '-29':
                 try:
                     data_hopf.append([float(x) for x in parts])
@@ -145,38 +189,83 @@ def plot_two_param(filename, figurename):
     # Adjust column names to your file
     columns = ["RUN" ,"PT", "TY", "LAB", "I", "L2NORM", "v", "w", "beta", 'stability']
     periodic = ["RUN" ,"PT", "TY", "LAB", "I", "L2NORM", "v", "w", "beta", "stability"]
+    homoclinic_cols = ["RUN" ,"PT", "TY", "LAB", "I", "L2NORM", "v", "w", "beta", "stability", "period"]
     df_saddle = pd.DataFrame(data_saddle, columns=columns)
     df_hopf = pd.DataFrame(data_hopf, columns=periodic)
+    df_homoclinic = pd.DataFrame(data_homoclinic, columns=homoclinic_cols)
 
     bt = df_saddle[(df_saddle["TY"] == -21) | (df_saddle["TY"] == -31)]
     if bt.empty:
         bt = df_hopf[(df_hopf["TY"] == -21) | (df_hopf["TY"] == -31)]
     cusp = df_saddle[df_saddle["TY"] == -22]
     gh = df_hopf[df_hopf["TY"] == -32]
-
-    # Plot min v and max v vs I
-    plt.figure(figsize=(7,5))
-    if not df_saddle.empty:
-        plt.plot(df_saddle["I"], df_saddle["beta"]*10, label="curve of saddle nodes", color="red")
-    if not bt.empty:
-        plt.scatter(bt["I"], bt["beta"]*10, color="black", label="BT", zorder=10)
-    if not cusp.empty:
-        plt.scatter(cusp["I"], cusp["beta"]*10, color='purple', label="Cusp Point", zorder=10)
     if not df_hopf.empty:
-        df_hopf.loc[df_hopf['TY'] == -34, ["I","v"]] = np.nan
-        plt.plot(df_hopf["I"], df_hopf["beta"]*10, color='black', label="curve of hopf bifurcations")
-    if not gh.empty:
-        plt.scatter(gh["I"], gh["beta"]*10, color="orange", label="GH", zorder=10)
-    plt.xlabel("I (non-dimensional stimulus current)")
-    plt.ylabel("beta (mV)")
-    plt.title(figurename)
-    plt.legend()
-    plt.grid(True)
-    # plt.xticks(np.arange(0, 0.045, 0.005))
-    plt.xlim(0, 0.04)
-    plt.ylim(-21, 0)
-    plt.savefig(figurename)
-    plt.close()
+        df_super  = df_hopf[df_hopf["I"] > list(gh["I"])[0]]
+        df_sub = df_hopf[df_hopf["I"] <= list(gh["I"])[0]]
+        df_sub = df_sub.copy()
+        df_sub.loc[df_sub['TY'] == -32, ["I","beta"]] = np.nan
+
+    # zoomed in plot
+    # the zoom_args are stored as [beta_min, beta_max, I_min, I_max]
+    if zoom:
+        plt.figure(figsize=(7,5))
+        if not df_saddle.empty:
+            plt.plot(df_saddle["I"], df_saddle["beta"], label="saddle node curve", color="red")
+        if not bt.empty:
+            plt.scatter(bt["I"], bt["beta"], color="black", label="BT", zorder=10)
+        if not gh.empty:
+            plt.scatter(gh["I"], gh["beta"], color="orange", label="GH", zorder=10)
+        if not cusp.empty:
+            plt.scatter(cusp["I"], cusp["beta"], color='purple', label="cusp point", zorder=10)
+        if not df_hopf.empty:
+            df_super.loc[df_super['TY'] == -34, ["I","v"]] = np.nan
+            plt.plot(df_super["I"], df_super["beta"], color='black', label="supercritical Hopf curve")
+        if not df_hopf.empty:
+            df_sub.loc[df_sub['TY'] == -34, ["I","v"]] = np.nan
+            plt.plot(df_sub["I"], df_sub["beta"], color='black', ls = '--',label="subcritical Hopf curve")    
+        if not df_homoclinic.empty:
+            plt.plot(df_homoclinic["I"], df_homoclinic["beta"], color='blue', label="homoclinic curve")
+        plt.plot([zoom_args[2], zoom_args[3]], [-0.875, -0.875], color='grey', ls='--')
+        plt.plot([zoom_args[2], zoom_args[3]], [-0.925, -0.925], color='grey', ls='--')
+        plt.plot([zoom_args[2], zoom_args[3]], [-0.95, -0.95], color='grey', ls='--')
+        plt.plot([zoom_args[2], zoom_args[3]], [-1, -1], color='grey', ls='--')
+        # plt.plot([zoom_args[2], zoom_args[3]], [cusp["beta"], cusp["beta"]], color='grey', ls='--')
+        # plt.plot([zoom_args[2], zoom_args[3]], [bt["beta"], bt["beta"]], color='grey', ls='--')
+        # plt.fill_between([zoom_args[2], zoom_args[3]], cusp["beta"], bt["beta"], color='black', alpha=0.2, label="transition region")        
+        plt.xlabel("I")
+        plt.ylabel(r"$\beta$")
+        plt.title(figurename)
+        plt.legend()
+        plt.grid(True)
+        plt.xlim(zoom_args[2], zoom_args[3])
+        plt.ylim(zoom_args[0], zoom_args[1])
+        plt.savefig(figurename)
+        plt.close()
+    else:
+        plt.figure(figsize=(7,5))
+        if not df_saddle.empty:
+            plt.plot(df_saddle["I"], df_saddle["beta"], label="saddle node curve", color="red")
+        if not bt.empty:
+            plt.scatter(bt["I"], bt["beta"], color="black", label="BT", zorder=10)
+        if not cusp.empty:
+            plt.scatter(cusp["I"], cusp["beta"], color='purple', label="cusp bifurcation", zorder=10)
+        if not df_hopf.empty:
+            df_hopf.loc[df_hopf['TY'] == -34, ["I","v"]] = np.nan
+            plt.plot(df_hopf["I"], df_hopf["beta"], color='black', label="Hopf curve")
+        if not gh.empty:
+            plt.scatter(gh["I"], gh["beta"], color="orange", label="GH", zorder=10)
+        if not df_homoclinic.empty:
+            plt.plot(df_homoclinic["I"], df_homoclinic["beta"], color='blue', label="homoclinic curve")
+        plt.xlabel("I")
+        plt.ylabel(r"$\beta$")
+        plt.title(figurename)
+        plt.legend()
+        plt.grid(True)
+        # plt.xticks(np.arange(0, 0.045, 0.005))
+        plt.xlim(0, 0.04)
+        plt.ylim(-2.1, 0)
+        plt.savefig(figurename)
+        plt.close()
 
 def plot_one_param_zoom(filename, figurename, zoom_region, zoom_periodic=False):
     data_eq = []
@@ -206,7 +295,7 @@ def plot_one_param_zoom(filename, figurename, zoom_region, zoom_periodic=False):
                         except ValueError:
                             row.append(x)
                     data_periodic.append(row)
-            if parts and parts[0] == '-29':
+            if parts and (parts[0] == '-29' or parts[0] == '33') :
                 try:
                     data_periodic.append([float(x) for x in parts])
                 except ValueError:
@@ -269,10 +358,10 @@ def plot_one_param_zoom(filename, figurename, zoom_region, zoom_periodic=False):
     plt.figure(figsize=(7,5))
     plt.plot(stable_eq["I"], stable_eq["v"], label="stable equilibria", color="blue")
     plt.plot(unstable_eq["I"], unstable_eq["v"], label="unstable equilibria", color="red", ls = '--')
-    plt.plot(stable_limit_cycle["I"], stable_limit_cycle["min v"], color='black')
-    plt.plot(stable_limit_cycle["I"], stable_limit_cycle['max v'], color='black', label="stable periodic branch")
-    plt.plot(unstable_limit_cycle["I"], unstable_limit_cycle["min v"], color='black', label="unstable periodic branch", ls = '--')
-    plt.plot(unstable_limit_cycle["I"], unstable_limit_cycle['max v'], color='black', ls = '--')
+    plt.scatter(stable_limit_cycle["I"], stable_limit_cycle["min v"], color='black', marker="o", s=2)
+    plt.scatter(stable_limit_cycle["I"], stable_limit_cycle['max v'], color='black', label="stable periodic branch", marker='o', s=2)
+    plt.scatter(unstable_limit_cycle["I"], unstable_limit_cycle["min v"], color='black', label="unstable periodic branch", marker='_')
+    plt.scatter(unstable_limit_cycle["I"], unstable_limit_cycle['max v'], color='black', marker='_')
 
     #plot the hopf point
     if not hopf.empty:
@@ -323,22 +412,10 @@ def movement_of_equilibria(filename, figurename, zoom_region):
     plt.close()
 
 def plot_frequency(filename, figurename):
-    data_eq = []
     data_periodic = []
     with open(filename) as f:
         for line in f:
             parts = line.strip().split()
-            if parts and parts[0] == '1':
-                try:
-                    data_eq.append([float(x) for x in parts])
-                except ValueError:
-                    row = []
-                    for x in parts:
-                        try:
-                            row.append(float(x))
-                        except ValueError:
-                            row.append(x)
-                    data_eq.append(row)
             if parts and parts[0] == '-8':
                 try:
                     data_periodic.append([float(x) for x in parts])
@@ -350,7 +427,18 @@ def plot_frequency(filename, figurename):
                         except ValueError:
                             row.append(x)
                     data_periodic.append(row)
-            if parts and parts[0] == '-29':
+            if parts and (parts[0] == '8' or parts[0] == '-33' or parts[0] =='-34' or parts[0] == '33'):
+                try:
+                    data_periodic.append([float(x) for x in parts])
+                except ValueError:
+                    row = []
+                    for x in parts:
+                        try:
+                            row.append(float(x))
+                        except ValueError:
+                            row.append(x)
+                    data_periodic.append(row)
+            if parts and (parts[0] == '-29' or parts[0] == '29'):
                 try:
                     data_periodic.append([float(x) for x in parts])
                 except ValueError:
@@ -368,21 +456,27 @@ def plot_frequency(filename, figurename):
     df_periodic = pd.DataFrame(data_periodic, columns=columns)
     df_periodic["freq"] = 1/(df_periodic["period"])
 
-    unstable_limit_cycle = df_periodic[df_periodic['stability'] == 1]
+    # unstable_limit_cycle = df_periodic[df_periodic['stability'] == 1]
     stable_limit_cycle = df_periodic[df_periodic['stability'] == 2]
 
     # Plot I vs frequency
     plt.figure(figsize=(7,5))
-    plt.scatter(stable_limit_cycle["freq"], stable_limit_cycle["I"], color='green', label="stable periodic branch")
-    plt.plot(unstable_limit_cycle["freq"], unstable_limit_cycle["I"], color='blue', label="unstable periodic branch")
+    plt.scatter(stable_limit_cycle["I"], stable_limit_cycle["freq"], color='black', label="stable periodic branch", s=1)
+    # plt.scatter(unstable_limit_cycle["I"], unstable_limit_cycle["freq"], color='blue', label="unstable periodic branch", s=5)
 
     plt.xlabel("I (non-dimensional stimulus current)")
-    plt.ylabel("frequency")
+    plt.ylabel("frequency (non-dimensional)")
     plt.title(figurename)
-    plt.legend()
+    # plt.legend()
+    plt.ylim(0, 0.02)
+    plt.xlim(0, 0.04)
     plt.grid(True)
     plt.savefig(figurename)
+    plt.show()
     plt.close()
 
 if __name__ == "__main__":
-    plot_frequency()
+    plot_two_param("b.two_par_full", "Two Parameter Bifurcation", zoom=True, zoom_args=[-1.025, -0.8, 0.019, 0.02])
+    # plot_one_param("b.type_1", "Class 1 Bifurcation")
+    # plot_two_param("b.two_par_cusp", "Cusp Bifurcation", zoom=True, zoom_args=[-1, 0, 0, 0.04])
+    # plot_two_param("b.two_par_full", "Two Parameter Bifurcation", zoom=True, zoom_args=[-2.1, 0, 0, 0.04])

@@ -11,134 +11,136 @@ import plotting_3dim as plot
 three_dim = auto.load('threedimnodimens')
 
 # First plot the one parameter bifurcation in type 1 parameter values.
-try:
-    plot.plot_one_param("b.one_par_type1", "Type 1 Bifurcation in 3-dimensional Model")
-    plot.plot_one_param_zoom("b.one_par_type1", "Type 1 Bifurcation in 3-dimensional Model", [-0.02, 0.04])
-    plot.plot_two_param("b.two_par_cusp", "Two Parameter Bifurcation of Saddle Nodes", [-0.02, 0.04, 0, 0.1], "gsub")
-except:
-    one_par_type1 = auto.run(three_dim)
+# try:
+#     plot.plot_one_param("b.one_par_type1", "Type 1 Bifurcation in 3-dimensional Model")
+#     plot.plot_one_param_zoom("b.one_par_type1", "Type 1 Bifurcation in 3-dimensional Model", [-0.02, 0.04])
+#     plot.plot_two_param("b.two_par_cusp", "Two Parameter Bifurcation of Saddle Nodes", [-0.02, 0.04, 0, 0.1], "gsub")
+# except:
+#     one_par_type1 = auto.run(three_dim)
 
-    # Save
-    auto.save(one_par_type1,'one_par_type1')
+#     # Save
+#     auto.save(one_par_type1,'one_par_type1')
 
-    # Now we would like the periodic branch coming from the hopf point. 
-    hb1 = auto.load(one_par_type1('HB1'))
+#     # Now we would like the periodic branch coming from the hopf point. 
+#     hb1 = auto.load(one_par_type1('HB1'))
 
-    one_par_type1 = one_par_type1 + auto.run(hb1,IPS=2,ICP=[1,11,12,13],ILP=0, NMX = 200000, NPR = 200000)
+#     one_par_type1 = one_par_type1 + auto.run(hb1,IPS=2,ICP=[1,11,12,13],ILP=0, NMX = 200000, NPR = 200000)
 
-    auto.save(one_par_type1,'one_par_type1')
+#     auto.save(one_par_type1,'one_par_type1')
 
-    #plot the full picture, and the 'zoomed in' picture
-    plot.plot_one_param("b.one_par_type1", "Type 1 Bifurcation in 3-dimensional Model")
-    plot.plot_one_param_zoom("b.one_par_type1", "Type 1 Bifurcation in 3-dimensional Model", [-0.02, 0.04])
+#     #plot the full picture, and the 'zoomed in' picture
+#     plot.plot_one_param("b.one_par_type1", "Type 1 Bifurcation in 3-dimensional Model")
+#     plot.plot_one_param_zoom("b.one_par_type1", "Type 1 Bifurcation in 3-dimensional Model", [-0.02, 0.04])
 
-    # # Set the new start label to the first LP
-    lp1 = auto.load(one_par_type1('LP1'))
+#     # # # Set the new start label to the first LP
+#     # lp1 = auto.load(one_par_type1('LP1'))
 
-    # # Continue from this label in two parameters
-    two_par_cusp = auto.run(lp1, ICP=[1, 2, 13], NCOL=6, ISW=2, DS = 1e-3, DSMIN= 1e-07, DSMAX= 0.01, EPSL= 1e-09, EPSU = 1e-09, EPSS =1e-06, NTST=100, MXBF=10, IAD=3, IID=3, NMX = 10000, NPR = 10000)
+#     # # # Continue from this label in two parameters
+#     # two_par_cusp = auto.run(lp1, ICP=[1, 2, 13], NCOL=6, ISW=2, DS = 1e-3, DSMIN= 1e-07, DSMAX= 0.01, EPSL= 1e-09, EPSU = 1e-09, EPSS =1e-06, NTST=100, MXBF=10, IAD=3, IID=3, NMX = 10000, NPR = 10000)
 
-    auto.save(two_par_cusp,'two_par_cusp')
+#     # auto.save(two_par_cusp,'two_par_cusp')
 
-    # Plot the two parameter continuation
-    plot.plot_two_param("b.two_par_cusp", "Two Parameter Bifurcation of Saddle Nodes", [-0.02, 0.04, 0, 0.1], "gsub")
+#     # # Plot the two parameter continuation
+#     # plot.plot_two_param("b.two_par_cusp", "Two Parameter Bifurcation of Saddle Nodes", [-0.02, 0.04, 0, 0.1], "gsub")
 
-# Now we want to have the type 2 version:
-try: 
-    plot.plot_one_param("b.one_par_type2", "Type 2 Bifurcation in 3-dimensional Model")
-except:
-    one_par_type2 = auto.run(three_dim, c='threedimnodimens.2')
+# # Now we want to have the type 2 version:
+# try: 
+#     plot.plot_one_param("b.one_par_type2", "Type 2 Bifurcation in 3-dimensional Model")
+# except:
+#     one_par_type2 = auto.run(three_dim, c='threedimnodimens.2')
 
-    auto.save(one_par_type2,'one_par_type2')
+#     auto.save(one_par_type2,'one_par_type2')
 
-    # save hopf point for two parameter continuation & periodic solutions
-    hb2 = auto.load(one_par_type2('HB1'))
+#     # save hopf point for two parameter continuation & periodic solutions
+#     hb2 = auto.load(one_par_type2('HB1'))
 
-    # compute periodic solutions.
-    one_par_type2 = one_par_type2 + auto.run(hb2,IPS=2,ICP=[1,11,12,13],ILP=1,NPR=20000000, NMX=20000000)
+#     # compute periodic solutions.
+#     one_par_type2 = one_par_type2 + auto.run(hb2,IPS=2,ICP=[1,11,12,13],ILP=1,NPR=20000000, NMX=20000000)
 
-    # Save
-    auto.save(one_par_type2,'one_par_type2')
+#     # Save
+#     auto.save(one_par_type2,'one_par_type2')
 
-    plot.plot_one_param("b.one_par_type2", "Type 2 Bifurcation in 3-dimensional Model")
+#     plot.plot_one_param("b.one_par_type2", "Type 2 Bifurcation in 3-dimensional Model")
 
-# Now we look for type 3...
-try: 
-    plot.plot_one_param("b.one_par_type3", "Type 3 Bifurcation in 3-dimensional Model")
-except:
-    one_par_type3 = auto.run(three_dim, c='threedimnodimens.3')
+# # Now we look for type 3...
+# try: 
+#     plot.plot_one_param("b.one_par_type3", "Type 3 Bifurcation in 3-dimensional Model")
+# except:
+#     one_par_type3 = auto.run(three_dim, c='threedimnodimens.3')
 
-    #save hopf point for two parameter continuation & periodic solutions
-    hb3 = auto.load(one_par_type3('HB1'))
+#     #save hopf point for two parameter continuation & periodic solutions
+#     hb3 = auto.load(one_par_type3('HB1'))
 
-    #compute periodic solutions.
-    one_par_type3 = one_par_type3 + auto.run(hb3,IPS=2,ICP=[1, 11, 12, 13], ILP=1, NMX=2000000, NPR=2000000)
+#     #compute periodic solutions.
+#     one_par_type3 = one_par_type3 + auto.run(hb3,IPS=2,ICP=[1, 11, 12, 13], ILP=1, NMX=2000000, NPR=2000000)
 
-    auto.save(one_par_type3,'one_par_type3')
+#     auto.save(one_par_type3,'one_par_type3')
 
-    plot.plot_one_param("b.one_par_type3", "Type 3 Bifurcation in 3-dimensional Model")
+#     plot.plot_one_param("b.one_par_type3", "Type 3 Bifurcation in 3-dimensional Model")
 
 # plotting hopf curve in two dimensions:
-try: 
-    plot.plot_two_param("b.two_par_hopf", "Two Parameter Continuation of Hopf curves", [0, 0.04, -0.1, 0.4], "gsub")
-    plot.plot_two_param("b.two_par_hopf_alt", "Two Parameter Continuation of Hopf curves- varying another parameter", [0, 0.06, -21, 0], "beta_y")
-    plot.plot_one_param("b.super_region", "Supercritical Region")
-except: 
-    one_par_type2_param = auto.run(three_dim, c='threedimnodimens.3')
+# try: 
+#     plot.plot_two_param("b.two_par_hopf_curves", "Two Parameter Continuation of Hopf curves", [0, 0.04, -0.1, 0.4], "gsub")
+#     plot.plot_two_param("b.two_par_hopf_alt", "Two Parameter Continuation of Hopf curves- varying another parameter", [0, 0.06, -21, 0], "beta_y")
+#     plot.plot_one_param("b.super_region", "Supercritical Region")
+# except: 
+    # one_par_type2_param = auto.run(three_dim, c='threedimnodimens.2')
 
-    auto.save(one_par_type2_param,'one_par_type2_param')
+    # auto.save(one_par_type2_param,'one_par_type2_param')
 
-    #save hopf point for two parameter continuation & periodic solutions
-    hb = auto.load(one_par_type2_param('HB1'))
+    # #save hopf point for two parameter continuation & periodic solutions
+    # hb = auto.load(one_par_type2_param('HB1'))
 
-    two_par_hopf = auto.run(hb, ICP=['I', 'gs', 13], NMX=2000, NPR=2000, ISW=2)
-    two_par_hopf = two_par_hopf + auto.run(hb,ICP=['I', 'gs', 13], DS = -1e-04, ISW=2)
+    # two_par_hopf = auto.run(hb, ICP=['I', 'gs', 13], NMX=2000, NPR=20, ISW=2, DS=1e-04, UZSTOP = {'I': [-0.1, 0.2], 'gs':[-0.2, 1]})
+    # two_par_hopf = two_par_hopf + auto.run(hb, NMX=2000, NPR=20, ISW=2, ICP=['I', 'gs', 13], DS=-1e-04, DSMIN=1e-07, EPSL = 1e-06, EPSU = 1e-06, EPSS = 1e-05, UZSTOP = {'I': [-0.1, 0.2], 'gs':[-0.2, 1]})
 
-    auto.save(two_par_hopf,'two_par_hopf')
+    # auto.save(two_par_hopf, "two_par_hopf_curves")
 
-    plot.plot_two_param("b.two_par_hopf", "Two Parameter Continuation of Hopf curves", [0, 0.04, -0.1, 0.4], "gsub")
+    # plot.plot_two_param("b.two_par_hopf_curves", "Two parameter continuation of hopf curves", [0, 0.1, -0.1, 1] ,(r"$\gamma_s$"))
 
-    two_par_hopf_alt = auto.run(hb, ICP=['I', 'beta_y', 13], ISW=2, UZSTOP = {'I': [-0.05, 0.06]})
-    two_par_hopf_alt = two_par_hopf_alt + auto.run(hb,ICP=['I', 'beta_y', 13], DS = -1e-04, ISW=2, UZSTOP = {'I': [-0.05, 0.05]})
+#     plot.plot_two_param("b.two_par_hopf", "Two Parameter Continuation of Hopf curves", [0, 0.04, -0.1, 0.4], "gsub")
 
-    auto.save(two_par_hopf_alt,'two_par_hopf_alt')
+#     two_par_hopf_alt = auto.run(hb, ICP=['I', 'beta_y', 13], ISW=2, UZSTOP = {'I': [-0.05, 0.06]})
+#     two_par_hopf_alt = two_par_hopf_alt + auto.run(hb,ICP=['I', 'beta_y', 13], DS = -1e-04, ISW=2, UZSTOP = {'I': [-0.05, 0.05]})
 
-    plot.plot_two_param("b.two_par_hopf_alt", "Two Parameter Continuation of Hopf curves- varying another parameter", [0, 0.06, -21, 0], "beta_y")
+#     auto.save(two_par_hopf_alt,'two_par_hopf_alt')
 
-    # todo: after finding the GH we want to move into the super-critical side to take the hopefully three transient spikes. 
+#     plot.plot_two_param("b.two_par_hopf_alt", "Two Parameter Continuation of Hopf curves- varying another parameter", [0, 0.06, -21, 0], "beta_y")
 
-    # Now I want at maybe the -18 beta_y value:
-    super_region = auto.run(three_dim, c='threedimnodimens.4')
+#     # todo: after finding the GH we want to move into the super-critical side to take the hopefully three transient spikes. 
 
-    auto.save(super_region, "super_region")
+#     # Now I want at maybe the -18 beta_y value:
+#     super_region = auto.run(three_dim, c='threedimnodimens.4')
 
-    hbsuper = auto.load(super_region('HB1'))
+#     auto.save(super_region, "super_region")
 
-    # compute periodic solutions.
-    super_region = super_region + auto.run(hbsuper,IPS=2,ICP=[1,11,12,13],ILP=1,NPR=20000, NMX=20000)
+#     hbsuper = auto.load(super_region('HB1'))
+
+#     # compute periodic solutions.
+#     super_region = super_region + auto.run(hbsuper,IPS=2,ICP=[1,11,12,13],ILP=1,NPR=20000, NMX=20000)
     
-    auto.save(super_region,'super_region')
+#     auto.save(super_region,'super_region')
 
-    plot.plot_one_param("b.super_region", "Supercritical Region")
+#     plot.plot_one_param("b.super_region", "Supercritical Region")
 
 # Now I want at maybe the -18 beta_y value:
-start_lower_eps = auto.run(three_dim, c='threedimnodimens.5')
+# start_lower_eps = auto.run(three_dim, c='threedimnodimens.5')
 
-auto.save(start_lower_eps, "start_lower_eps")
+# auto.save(start_lower_eps, "start_lower_eps")
 
-start_lower_eps_hopf = auto.load(start_lower_eps('HB1'))
+# start_lower_eps_hopf = auto.load(start_lower_eps('HB1'))
 
-# then we want to plot the two param in lower epsilon. 
-# check this I think chagning vna etc is NOT The right call here...
-two_par_low_eps = auto.run(start_lower_eps_hopf, ICP=['I', 'Vna', 13], ISW=2, UZSTOP = {'I': [-0.05, 0.1]}, NMX = 200000, NPR = 200000)
-two_par_low_eps = two_par_low_eps + auto.run(start_lower_eps_hopf,ICP=['I', 'Vna', 13], DS = -1e-04, ISW=2, UZSTOP = {'I': [-0.05, 0.1]}, ILP=0)
+# # then we want to plot the two param in lower epsilon. 
+# # check this I think chagning vna etc is NOT The right call here...
+# two_par_low_eps = auto.run(start_lower_eps_hopf, ICP=['I', 'Vna', 13], ISW=2, UZSTOP = {'I': [-0.05, 0.1]}, NMX = 200000, NPR = 200000)
+# two_par_low_eps = two_par_low_eps + auto.run(start_lower_eps_hopf,ICP=['I', 'Vna', 13], DS = -1e-04, ISW=2, UZSTOP = {'I': [-0.05, 0.1]}, ILP=0)
 
-auto.save(two_par_low_eps,'two_par_low_eps')
+# auto.save(two_par_low_eps,'two_par_low_eps')
 
-plot.plot_two_param("b.two_par_low_eps", "Variation under smaller epsilon!", [-0.05, 0.1, -10, 10], "Vna")
+# plot.plot_two_param("b.two_par_low_eps", "Variation under smaller epsilon!", [-0.05, 0.1, -10, 10], "Vna")
 
 # plot the region where I find the three transient spikes. 
-three_trans = auto.run(three_dim, c='threedimnodimens.6')
+three_trans = auto.run(three_dim, c='threedimnodimens.7')
 
 auto.save(three_trans, "three_trans")
 
@@ -146,13 +148,12 @@ auto.save(three_trans, "three_trans")
 hb_three_trans = auto.load(three_trans('HB1'))
 
 # compute periodic solutions.
-three_trans = three_trans + auto.run(hb_three_trans, IPS=2, ICP=[1,11,12,13], ILP=1, NPR=90000000, NMX=90000000)
+three_trans = three_trans + auto.run(hb_three_trans, IPS=2, ICP=[1,11,12,13], ILP=0, ISW=1, NPR=100000, NMX=200000, NTST=500, NCOL=4, EPSL= 1e-09, EPSU = 1e-09, EPSS = 1e-07, DS =0.01, DSMIN=1e-9, DSMAX=0.1)
 
 # Save
 auto.save(three_trans,'three_trans')
 
-plot.plot_one_param("b.three_trans", "Bifurcation in the sone with three transient spikes")
-
+plot.plot_one_param("b.three_trans", "Bifurcation in the zone with three transient spikes")
 #clean the directory
 auto.wait()
 auto.cl()

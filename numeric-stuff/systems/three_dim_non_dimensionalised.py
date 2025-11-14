@@ -1,29 +1,26 @@
 import sympy as sp
-import taylor as T
 import numpy as np
 import math
 import matplotlib.pyplot as plt
 import matplotlib.animation as animation
 from matplotlib.widgets import Slider
 from mpl_toolkits.mplot3d.axes3d import Axes3D
+import itertools
 import util
-import warnings
 from scipy.integrate import solve_ivp
 from scipy.differentiate import jacobian
 from systems.system import System
 import matplotlib.style as mplstyle
-# ok so actually, I need to fix this as it is wrong!!!
+import three_dimensional_system_pars
+from matplotlib import animation
+import warnings
 
-# tonight: I want to get the folds plotted properly, as in maybe I can take a function of z but for split v values 
-# so two functions almost idk if I can do that...
-
-warnings.filterwarnings('ignore')
+warnings.filterwarnings("ignore")
 points = 1000
 kv = 100
 int_method = "LSODA"
 
-#for presentation - no transient (~20), one transient (~50), two transient (~80) three? #82.355
-I_stim = 82.35/(kv*20) 
+#for presentation - no transient (~20), one transient (~50), two transient (~80) three? #82.35 periodic 83
 eq_guesses = [-80/kv, -40/kv, -50/kv, -10/kv]
 fold_guesses = [10/kv, -60/kv]
 
@@ -42,34 +39,20 @@ dydt = eps*(yinf - y)*sp.cosh((gamma_y*v - beta_y)/2)
 dzdt = eps*(zinf - z)*sp.cosh((gamma_z*v - beta_z)/2)
 phi = (I - 1/2*(1+sp.tanh(a*v-m))*(v - N) - sub*z*(v-S) - a_l*(v-L))/(a_k*(v-K))
 
-#todo:  need to edit this so it is in the non-dimensionalised variables!!!!
-params = {
-    'I': I_stim,
-    'epsilon': 0.00015, # then this will change to C/gf * phi_z = 0.15* (2/20) ~ 0.015
-    'N': 50/kv,
-    'a': kv/18,
-    'm': -1.2/18,
-    'K': -100/kv,
-    'a_k': 20/20,
-    'sub': 8/20,
-    'S': -100/kv,
-    'a_l': 2.0/20,
-    'L': -70/kv,
-    'gamma_y': kv/10,
-    'beta_y': -10/10, #now we are changing this one...
-    'gamma_z': kv/15,
-    'beta_z': -21/15,
-}
+# parameter definition: a full list of parameters is given in the three_dimensional_system_pars file.
+params = three_dimensional_system_pars.way_more_than_three
+I_stim = params.get("I")
 
 # different parameter setups. 
 sympy_params = {sp.symbols(k): v for k, v in params.items()}
 sympy_params_no_I = {sp.symbols(k): v for k, v in params.items() if k != 'I'}
-sympy_params_no_eps = {sp.symbols(k): v for k,v in params.items() if k != 'epsilon'}
 
 # this is to compute and plot the function y = phi
 phi_subs = phi.subs(sympy_params)
 phi_subs_no_I = phi.subs(sympy_params_no_I)
 plot_phi = sp.lambdify((v, z), phi_subs)
+phi_subs_zero_I = phi_subs_no_I.subs("I", 0)
+plot_phi_I_zero = sp.lambdify((v, z), phi_subs_zero_I)
 
 # to plot the y 'nullcline'
 yinf_subs = yinf.subs(sympy_params)
@@ -101,7 +84,10 @@ v_vals = np.linspace(-0.9, 0.4, points)
 
 d_v_f = sp.diff(dvdt, v)
 eq_fold = d_v_f.subs(y, phi)
+eq_fold_no_z = eq_fold.subs(z, zinf)
+eq_fold_no_z = eq_fold_no_z.subs(sympy_params_no_I)
 fold_lines = util.find_fold_lines(eq_fold, v_vals, z_vals, [v, z], I_stim, sympy_params_no_I)
+fold_v_vals = util.find_equilibria(eq_fold_no_z, v, fold_guesses, I_stim)
 
 # Also want the folded singularity, which occurs when the Dvf = 0, and
 # Dyf * h + Dzf * g = 0 curves intersect. 
@@ -139,8 +125,18 @@ f_func = sp.lambdify((v, y, z, I), dvdt.subs(sympy_params_no_I))
 h_func = sp.lambdify((v, y, I), dydt.subs(sympy_params_no_I))
 g_func = sp.lambdify((v, z, I), dzdt.subs(sympy_params_no_I))
 
+ramp = np.linspace(0, (100/(20*100)) , 29001)
+
+def step_protocol(time, injected_current):
+    if time <= 1000:
+        return 0
+    else:
+        return injected_current
+
 # setup for the original (non-dimensionalised) system
-def nondim_ivp(t, X, I):
+def nondim_ivp(t, X, injected_current):
+    I = step_protocol(t, injected_current)
+
     v, y, z = X
     return[f_func(v, y, z, I), h_func(v, y, I), g_func(v, z, I)]
 
@@ -233,24 +229,26 @@ def patch_flow(eq, init_coords, plot_phi, projected_folds, given_folds, drop_up,
 
     return [np.array(solution_v), np.array(solution_y), np.array(solution_z)]
 
-# TODO: fix this for the 'new' way I comput the folds
-# the fold lines are computed with stimulus
-def compute_projected_folds(fold_lines, stimulus, phi, plot_phi):
-    projected_folds = []
-    v_projected_fold = []
-    z_projected_folds = fold_lines[1]
-    phi_vals = plot_phi(fold_lines[0], fold_lines[1])
-    # now we have z values, and y values we want the v values (I think)
-    for z_val in z_projected_folds: 
-        for val in phi_vals:
-            phi_subs = phi.subs(z, z_val)
-            # we want all v such that z and phi 'work' hmmmmm
-            # i need to have a think through how i do this
-    return projected_folds
+# TODO: fix this for the 'new' way I compute the folds
+def compute_projected_folds(fold_lines, v_vals): # note for the time being this should work, but it takes a hella long time. 
+    projected_folds_v = [] 
+    phi_vals = [] 
+    for i in range(len(fold_lines[0])): 
+        phi_vals.append(plot_phi(fold_lines[0][i], fold_lines[1][i]))
+
+    for (z_index, z_val), v_val in itertools.product(enumerate(fold_lines[1]), v_vals): 
+        for phi_val in phi_vals: 
+            print(phi_val)
+            if math.isclose(plot_phi(v_val, z_val), phi_val, abs_tol=0.0001): 
+                if (fold_lines[0][z_index] != v_val): 
+                    projected_folds_v.append(v_val) 
+    
+    return projected_folds_v
+
 
 def compute_invariant_manifolds(FSN_v_value, FSN_z_value):
     init = [float(FSN_v_value), float(FSN_z_value)]
-    epsilon = 0.01
+    epsilon = 0.001
     t_inf = 0
     stable_inv_manifold = []
     unstable_inv_manifold = []
@@ -258,6 +256,7 @@ def compute_invariant_manifolds(FSN_v_value, FSN_z_value):
     Jac = jacobian(reduced_system, init)
     Jac = np.select([Jac.df > 1e-14, Jac.df < -1e-14], [Jac.df, Jac.df], 0)
     eigs, eigvecs = np.linalg.eig(Jac) 
+    print(eigs)
 
     for i in range(2):
         if eigs[i] > 0:
@@ -266,15 +265,15 @@ def compute_invariant_manifolds(FSN_v_value, FSN_z_value):
             unstable_eigvec = eigvecs[i]
 
     t_backwards = [1800000, t_inf]
-    t_eval_backwards = np.linspace(t_backwards[0], t_backwards[1], points*100)
+    t_eval_backwards = np.linspace(t_backwards[0], t_backwards[1], points*10000)
 
     t_forwards = [t_inf, 1800000]
-    t_eval_forwards = np.linspace(t_forwards[0], t_forwards[1], points*100)
+    t_eval_forwards = np.linspace(t_forwards[0], t_forwards[1], points*1000)
 
     # Modify initial conditions to shoot in stable direction
     try:
-        perturbed_stable = [[init[i] + 0.001 * stable_eigvec[i] for i in range(2)], [init[i] - 0.005 * stable_eigvec[i] for i in range(2)]]
-        perturbed_unstable = [[init[i] + 0.05 * unstable_eigvec[i] for i in range(2)], [init[i] - 0.001 * unstable_eigvec[i] for i in range(2)]]
+        perturbed_stable = [[init[i] + 0.00001 * stable_eigvec[i] for i in range(2)], [init[i] - 0.0015 * stable_eigvec[i] for i in range(2)]]
+        perturbed_unstable = [[init[i] + 0.001 * unstable_eigvec[i] for i in range(2)], [init[i] - 0.001 * unstable_eigvec[i] for i in range(2)]]
         stable_inv_manifold.append(solve_ivp(reduced_system_ivp, t_backwards, perturbed_stable[0], t_eval = t_eval_backwards, method=int_method, args=(I_stim,)))
         stable_inv_manifold.append(solve_ivp(reduced_system_ivp, t_backwards, perturbed_stable[1], t_eval = t_eval_backwards, method=int_method, args=(I_stim,)))
         unstable_inv_manifold.append(solve_ivp(reduced_system_ivp, t_forwards, perturbed_unstable[0], t_eval = t_eval_forwards, method=int_method, args=(I_stim,)))
@@ -294,398 +293,332 @@ class NonDimensionalThreeDim(System):
             [stable_inv_manifold, unstable_inv_manifold] = compute_invariant_manifolds(FSN_v_value[0], FSN_z_value[0])
 
         z_vals = np.linspace(-0.3, 0.3, points) 
-        v_vals = np.linspace(-0.9, 0.5, points)
+        v_vals = np.linspace(-0.9, 0.6, points)
         V, Z = np.meshgrid(v_vals, z_vals)
 
         # first: we plot the 'nullclines' with associated equilbria and folded saddle points
         plt.figure(figsize=(10, 6))
         for eq in equilibria:
-            plt.plot(plot_zinf(eq), eq, marker='o', color='red', label="Equilibrium", zorder=10)
+            plt.plot(plot_zinf(eq), eq, marker='o', color='red', label="True Equilibrium", zorder=10)
         plt.contour(Z, V, FSN_eq_func_v(V, Z, I_stim), levels=[0], linestyles = '--',colors='black', label = "v nullclines")
+        plt.plot([], [], 'k--', label='v nullcline')
+        plt.plot([], [], 'k-', label='w nullcline')
         plt.contour(Z, V, FSN_eq_func_z(V, Z, I_stim), levels=[0], color='black', label = "z nullclines")     
         if FSN_values:
-            plt.plot(FSN_z_value[0], FSN_v_value[0], color='green', marker='o', label = "Folded Singularity")  
+            plt.plot(FSN_z_value[0], FSN_v_value[0], color='green', marker='o', label = "Folded Singularity", zorder=10)  
         plt.ylabel('v')
         plt.xlabel('z')
         plt.ylim(-0.9, 0.6)
         plt.xlim(-0.3,0.3)
-        plt.title("Nullcline Plot with Associated Equilibria for De-singularised Reduced Problem")
+        plt.title("Nullcline Plot for De-singularised Reduced Problem")
         plt.grid()
         plt.legend()
         plt.show()
 
         # next we plot all the invariant manifolds for the folded singularity, with the folds and Folded Saddle included
         # in this case, I colour the alternate (in-between the folds) the stability of the manifold. 
-        if stable_inv_manifold:
-            plt.plot((stable_inv_manifold[0]).y[1], (stable_inv_manifold[0]).y[0], color='blue', label= "Stable invariant curve")
-            plt.plot((stable_inv_manifold[1]).y[1], (stable_inv_manifold[1]).y[0], '--', color='red', label= "Flipped stable invariant curve") 
-        if unstable_inv_manifold:
-            plt.plot((unstable_inv_manifold[0]).y[1], (unstable_inv_manifold[0]).y[0], color='red', label="Unstable invariant curve")
-            plt.plot((unstable_inv_manifold[1]).y[1], (unstable_inv_manifold[1]).y[0], '--', color='blue', label="Flipper unstable invariant curve")
         if FSN_values:
-            plt.plot(FSN_z_value[0], FSN_v_value[0], color='green', marker='o', label = "Folded Singularity", zorder=10)
-        plt.plot(fold_lines[1], fold_lines[0], color='black', label="Lower Fold line")
-        plt.ylabel('v')
-        plt.xlabel('z')
-        plt.ylim(-1, 0.05)
-        plt.xlim(-0.3,0.3)
-        plt.title("Invariant Manifolds of Folded Singularity")
-        plt.grid()
-        if FSN_z_value and FSN_z_value[0] > 0:
-            plt.legend(loc='lower left')
-        else:
-            plt.legend(loc='lower right')
-        plt.show()
+            if stable_inv_manifold:
+                plt.plot((stable_inv_manifold[0]).y[1], (stable_inv_manifold[0]).y[0], color='purple', label= "canard solution")
+                plt.plot((stable_inv_manifold[1]).y[1], (stable_inv_manifold[1]).y[0], color='purple') 
+            if unstable_inv_manifold:
+                plt.plot((unstable_inv_manifold[0]).y[1], (unstable_inv_manifold[0]).y[0], color='green', label="faux canard solution")
+                plt.plot((unstable_inv_manifold[1]).y[1], (unstable_inv_manifold[1]).y[0], color='green')
+            # if FSN_values:
+            #     plt.plot(FSN_z_value[0], FSN_v_value[0], color='green', marker='o', label = "Folded Singularity", zorder=10)
+            for eq in equilibria:
+                plt.plot(plot_zinf(eq), eq, marker='o', color='red', label="True Equilibrium", zorder=10)
+            plt.plot(fold_lines[1], fold_lines[0], color='black', label=r"$F^-$")
+            plt.ylabel('v')
+            plt.xlabel('z')
+            plt.ylim(-1, 0.05)
+            plt.xlim(-0.3,0.3)
+            plt.title("Invariant Manifolds of Folded Singularity")
+            plt.grid()
+            if FSN_z_value and FSN_z_value[0] > 0:
+                plt.legend(loc='lower left', bbox_to_anchor=(0, 0))
+            else:
+                plt.legend(loc='lower right', bbox_to_anchor=(1, 0))
+            plt.show()
 
         # obtain the kicked equilibria starting when the stimulus is 0.
         initial_conditions = [og_equilibria[0], float(plot_yinf_og(og_equilibria[0])), float(plot_zinf_og(og_equilibria[0]))]
 
-        # projected fold line to the opposite branch
-        # projected_folds = compute_projected_folds(folds, I_stim)
-
         # get all my plot features together, making sure to only plot when z, y are between 0 and 1.
+        v_vals = np.linspace(-0.9, 0.6, points)
+        z_vals = np.linspace(0, 0.3, points)
         v_vals, z_vals = np.meshgrid(v_vals, z_vals)
+
+        # next we want to restrict to relevant domain (ie) y and z between 0 and 1)
         y_vals = plot_phi(v_vals, z_vals)
         y_vals = np.where((y_vals >= 0) & (y_vals <= 0.3), y_vals, np.nan)
         fold_y_vals = plot_phi(np.asarray(fold_lines[0]), np.asarray(fold_lines[1]))
         fold_y_vals = np.where((fold_y_vals >= 0) & (fold_y_vals <= 0.3), fold_y_vals, np.nan)
-
-        # folds along the manifold
-        # y_upper_fold = plot_phi(folds[0], z_vals)
-        # y_upper_fold = np.where((y_upper_fold >= 0) & (y_upper_fold <= 0.3), y_upper_fold, np.nan)
-        # y_lower_fold = plot_phi(folds[1], z_vals)
-        # y_lower_fold = np.where((y_lower_fold >= 0) & (y_lower_fold <= 0.3), y_lower_fold, np.nan)
-
-        # drop_off = np.linspace(folds[0], projected_folds[0], points)
-        # drop_up = np.linspace(folds[1], projected_folds[1], points)
-        
-        # stable_inv_manifold.y = stable_inv_manifold.y[:, stable_inv_manifold.y[0] > projected_folds[0]]
+        fold_lines[1] = [val if ((0 <= val) & (val <= 0.3)) else np.nan for val in fold_lines[1]]
+        if FSN_values and stable_inv_manifold:
+            y_separatrix_values = plot_phi((stable_inv_manifold[0]).y[0], (stable_inv_manifold[0]).y[1])
+            y_separatrix_values = np.where((y_separatrix_values >= 0) & (y_separatrix_values <= 0.3), y_separatrix_values, np.nan)
         
         # transient_sols = patch_flow(equilibria[0], initial_conditions, plot_phi, projected_folds, folds, drop_up, drop_off, I_stim)
-        t_span = [0, 20000]
-        t_eval = np.linspace(t_span[0], t_span[1], points*1000)
+        t_span = [0, 30000]
+        t_eval = np.linspace(t_span[0], t_span[1], points*100)
+
         actual_sol = solve_ivp(nondim_ivp, t_span, initial_conditions, method=int_method, t_eval=t_eval, args=(I_stim,))
 
-        plt.plot(actual_sol.t, actual_sol.y[0], color='black', linewidth=1.5, label="transient spike time trace")     
-        plt.xlabel('t (non-dimensional time)')
-        plt.ylabel('v (non-dimensional voltage term)')
-        plt.title("Transient Spiking Behaviour in Type 3 Neuron")
-        plt.grid()
-        plt.legend()
+        step_protocol = [I_stim if val >= 1000 else 0 for val in t_eval]
+
+        actual_sol = solve_ivp(
+            nondim_ivp,
+            t_span,
+            initial_conditions,
+            method=int_method,
+            t_eval=t_eval,
+            args=(I_stim,)
+        )
+
+        t = actual_sol.t
+        v = actual_sol.y[0]
+
+        frame_indices = np.arange(0, len(t), 10000)
+
+        fig, (ax1, ax2) = plt.subplots(2, 1, figsize=(8,6), sharex=True)
+
+        ax1.set_xlim(t_span)
+        ax1.set_ylim(-0.9, 0.5)
+        ax1.set_ylabel("v(t)")
+        ax1.set_title("Transient Behaviour")
+
+        voltage_line, = ax1.plot([], [], color="black", linewidth=1.5)
+
+        ax2.set_xlim(t_span)
+        ax2.set_ylim(0, -0.08)
+        ax2.set_xlabel("t")
+        ax2.set_ylabel("Injected Current")
+
+        stim_line, = ax2.plot([], [], color="black", linewidth=1.5)
+
+        def init():
+            voltage_line.set_data([], [])
+            stim_line.set_data([], [])
+            return voltage_line, stim_line
+
+        def update(frame):
+            idx = frame_indices[frame]
+            voltage_line.set_data(t[:idx], v[:idx])
+            stim_line.set_data(t_eval[:idx], step_protocol[:idx])
+            return voltage_line, stim_line
+
+        anim = animation.FuncAnimation(
+            fig,
+            update,
+            frames=len(frame_indices),
+            init_func=init,
+            interval=10,
+            blit=True
+        )
+
+        # writer = animation.PillowWriter(fps=50)
+        # anim.save("one-spike.gif", writer=writer)
         plt.show()
 
-        fig = plt.figure(figsize=(10, 6))
-        ax = fig.add_subplot(111, projection='3d')
+        fig, axs = plt.subplots(2, 1, figsize=(8, 6), sharex=True)
 
-        # Now we can plot the slow manifold (y = phi(v, z)), with equilibria and fold lines included.
-        ax.plot_surface(y_vals, z_vals, v_vals, label='Critical manifold', color='sandybrown', alpha=0.9)
-        for eq in equilibria:
-            ax.scatter(plot_yinf(eq), plot_zinf(eq), eq, marker='o', color='red', label='equilibrium')  
-        if FSN_values and FSN_z_value[0] >= 0:
-            ax.scatter(float(plot_phi(FSN_v_value[0], FSN_z_value[0])), float(FSN_z_value[0]), float(FSN_v_value[0]), marker='o', color='green', label='FSN')
-            # ax.plot(plot_phi(stable_inv_manifold.y[0], stable_inv_manifold.y[1]), stable_inv_manifold.y[1], stable_inv_manifold.y[0], color='blue', label= "Stable invariant curve") 
-        # plot the fold lines, and the projection of the fold onto the opposite 'branch'.
-        plt.plot(fold_y_vals, np.asarray(fold_lines[1]), np.asarray(fold_lines[0]), color='black', ls='--', linewidth= 2, label='folds?')
-        # ax.plot(y_upper_fold, z_vals, folds[0], color='black', ls = '--', linewidth=2, label="Upper Fold")
-        # ax.plot(y_lower_fold, z_vals, folds[1], color='black', ls = '--', linewidth =2, label= "lower Fold") 
-        # ax.plot(y_upper_fold, z_vals, projected_folds[0], color='darkblue', ls = '--', linewidth =2, label= "Projected Upper fold")
-        # ax.plot(y_lower_fold, z_vals, projected_folds[1], color='darkblue', ls = '--', linewidth =2, label= "Projected Lower fold")                        
-        # ax.plot(transient_sols[1], transient_sols[2], transient_sols[0], color='darkmagenta', linewidth=1.5, alpha=1, label="Solution")  
-        # ax.scatter(initial_conditions[1], initial_conditions[2], initial_conditions[0], marker='o', color='pink', label='kicked point') 
-        # ax.plot(actual_sol.y[1], actual_sol.y[2], actual_sol.y[0], color='black', lw=2)     
-        ax.set_xlabel('y')
-        ax.set_ylabel('z')
-        ax.set_zlabel('v')
-        ax.set_xlim(0,0.3)
-        ax.set_ylim(0,0.3)
-        ax.set_zlim(-1, 0.5)
-        ax.legend(loc='center left', bbox_to_anchor=(1, 0.5), fancybox=True)
-        mplstyle.use('fast')
-        #plt.savefig("critical manifold full plot")
-        plt.show()
+        axs[0].plot(actual_sol.t, actual_sol.y[0], color='black')
+        axs[0].set_ylabel("v")
+        axs[0].set_ylim(-0.9, 0.5)
+        axs[0].set_title("Time trace and injected current")
 
-    def move():
-        Z_vals = np.linspace(0, 0.6, points) 
-        V_vals = np.linspace(-0.9, 0.5, points)
-        v_vals, z_vals = np.meshgrid(V_vals, Z_vals)
+        axs[1].plot(actual_sol.t, step_protocol, color='black')
+        axs[1].set_xlabel("T")
+        axs[1].set_ylim(0, 0.05)
+        axs[1].set_ylabel(r"$I$")
 
-        fig = plt.figure(figsize=(12, 8))
-        ax = fig.add_subplot(111, projection='3d')
+        plt.tight_layout()
+        plt.savefig("time-trace-three-spikes")
+        plt.close()
 
-        plt.subplots_adjust(bottom=0.25) 
+        # fig = plt.figure(figsize=(10, 8), constrained_layout=True)
+        # ax = fig.add_subplot(111, projection='3d')
 
-        ax.set_xlim(0, 0.4)
-        ax.set_ylim(0, 0.4)
-        ax.set_zlim(-1, 0.5)        
-        ax.set_xlabel('y')
-        ax.set_ylabel('z')
-        ax.set_label('v')
-        ax.set_title('Changes to spiking behaviour as stimulus is varied')
+        # upper_fold_v_val = fold_v_vals[0]
+        # lower_fold_v_val = fold_v_vals[1]
 
-        initial_conditions = [og_equilibria[0], plot_yinf(og_equilibria[0]), plot_zinf(og_equilibria[0])]
+        # upper_fold_v_vals = np.full(points, upper_fold_v_val)
+        # lower_fold_v_vals = np.full(points, lower_fold_v_val)
 
-        y_vals = plot_phi(v_vals, z_vals)
-        y_vals = np.where((y_vals >= 0) & (y_vals <= 0.3), y_vals, np.nan)
+        # upper_fold_y_vals = plot_phi(upper_fold_v_val, z_vals)
+        # lower_fold_y_vals = plot_phi(lower_fold_v_val, z_vals)
+        # upper_fold_y_vals = np.where((upper_fold_y_vals >= 0) & (upper_fold_y_vals <= 0.3), upper_fold_y_vals, np.nan)
+        # lower_fold_y_vals = np.where((lower_fold_y_vals >= 0) & (lower_fold_y_vals <= 0.3), lower_fold_y_vals, np.nan)
 
-        y_upper_fold = plot_phi(folds[0], Z_vals)
-        y_upper_fold = np.where((y_upper_fold >= 0) & (y_upper_fold <= 0.3), y_upper_fold, np.nan)
-        y_lower_fold = plot_phi(folds[1], Z_vals)
-        y_lower_fold = np.where((y_lower_fold >= 0) & (y_lower_fold <= 0.3), y_lower_fold, np.nan)
+        # upper_stable_branch = []
+        # lower_stable_branch = []
+        # unstable_branch = []
+        # v_values = np.linspace(-0.9, 0.4, points)
 
-        projected_folds = compute_projected_folds(folds, I_stim)
-        drop_off = np.linspace(folds[0], projected_folds[0], points)
-        drop_up = np.linspace(folds[1], projected_folds[1], points)
+        # for value in v_values:
+        #     if (value <= lower_fold_v_val):
+        #         lower_stable_branch.append(value)
+        #     elif (value >= upper_fold_v_val):
+        #         upper_stable_branch.append(value)
+        #     else:
+        #         unstable_branch.append(value)
+        
+        # z_values_upper = np.linspace(0, 0.3, len(upper_stable_branch))
+        # z_values_lower = np.linspace(0, 0.3, len(lower_stable_branch))
+        # z_values_middle = np.linspace(0, 0.3, len(unstable_branch))
 
-        transient_sols = patch_flow(equilibria[0], initial_conditions, plot_phi, projected_folds, folds, drop_up, drop_off, I_stim)
+        # V_VALS_UPPER, Z_VALS_UPPER = np.meshgrid(np.array(upper_stable_branch), z_values_upper)
+        # V_VALS_LOWER, Z_VALS_LOWER = np.meshgrid(np.array(lower_stable_branch), z_values_lower)
+        # V_VALS_MIDDLE, Z_VALS_MIDDLE = np.meshgrid(np.array(unstable_branch), z_values_middle)
 
-        ax.plot_surface(y_vals, z_vals, v_vals, label='Critical manifold', color='sandybrown', alpha=0.8)
-        ax.scatter(plot_yinf(equilibria[0]), plot_zinf(equilibria[0]), equilibria[0], color='red', label='Equilibria')
-        ax.scatter(plot_phi(folds[1], FSN_z_value[0]), FSN_z_value[0], folds[1], color='green', label='Folded Sigularity')
-        ax.scatter(initial_conditions[1], initial_conditions[2], initial_conditions[0], color='pink', label="Initial Condition")
-        ax.plot(y_lower_fold, Z_vals, folds[1], color='black', label='Lower Fold', lw=1, ls='--')
-        ax.plot(y_upper_fold, Z_vals, folds[0], color='black', label='Upper Fold', lw=1, ls='--')
-        ax.plot(y_lower_fold, Z_vals, projected_folds[1], color='darkblue', ls = '--', linewidth =2, label= "Projected Lower fold")   
-        ax.plot(y_upper_fold, Z_vals, projected_folds[0], color='darkblue', ls = '--', linewidth =2, label= "Projected Lower fold")                                             
-        ax.plot(transient_sols[1], transient_sols[2], transient_sols[0], color='darkmagenta', linewidth=1.5, alpha=1, label="Solution")  
+        # upper_stable_phi = plot_phi(V_VALS_UPPER, Z_VALS_UPPER)
+        # lower_stable_phi = plot_phi(V_VALS_LOWER, Z_VALS_LOWER)
+        # unstable_phi = plot_phi(V_VALS_MIDDLE, Z_VALS_MIDDLE)
 
-        I_text = ax.text(0, 0, 0, '', transform=ax.transAxes,
-                        verticalalignment='top', fontsize=12,
-                        bbox=dict(boxstyle='round', facecolor='white', alpha=0.8))
+        # upper_stable_phi = np.where((upper_stable_phi >= 0) & (upper_stable_phi <= 0.3), upper_stable_phi, np.nan)
+        # lower_stable_phi = np.where((lower_stable_phi >= 0) & (lower_stable_phi <= 0.3), lower_stable_phi, np.nan)
+        # unstable_phi = np.where((unstable_phi >= 0) & (unstable_phi <= 0.3), unstable_phi, np.nan)
 
-        # slider:
-        ax_slider = plt.axes([0.2, 0.1, 0.65, 0.03])
-        slider = Slider(ax_slider, 'I', valmin=0.0, valmax=100/(kv*20), valinit=I_stim, valstep=0.0001, facecolor="black", edgecolor="black")  
+        # # Now we can plot the slow manifold (y = phi(v, z)), with equilibria and fold lines included.
+        # # ax.plot_surface(upper_stable_phi, Z_VALS_UPPER, V_VALS_UPPER, color='blue', alpha=0.4, label=r"$S^{\pm}$")
+        # # ax.plot_surface(lower_stable_phi, Z_VALS_LOWER, V_VALS_LOWER, color='blue', alpha=0.4)        
+        # # ax.plot_surface(unstable_phi, Z_VALS_MIDDLE, V_VALS_MIDDLE, color='red', label=r"$U$", alpha=0.4)
+        # # ax.plot_surface(np.full(len(upper_stable_branch), -0.05), Z_VALS_UPPER, V_VALS_UPPER, color='blue', alpha=0.4)
+        # # ax.plot_surface(np.full(len(lower_stable_branch), -0.05), Z_VALS_LOWER, V_VALS_LOWER, color='blue', alpha=0.4)        
+        # # ax.plot_surface(np.full(len(unstable_branch), -0.05), Z_VALS_MIDDLE, V_VALS_MIDDLE, color='red', alpha=0.4)
+        # ax.plot_surface(y_vals, z_vals, v_vals, label=r'$M$', color='grey', alpha=0.4)
+        # for eq in equilibria:
+        #     ax.scatter(plot_yinf(eq), plot_zinf(eq), eq, marker='o', color='red', label='Equilibrium')  
+        # # if FSN_values and FSN_z_value[0] >= 0:
+        # #     ax.scatter(float(plot_phi(FSN_v_value[0], FSN_z_value[0])), float(FSN_z_value[0]), float(FSN_v_value[0]), marker='o', color='green', label='FSN')
+        # # plot the fold lines, and the projection of the fold onto the opposite 'branch'.
+        # plt.plot(upper_fold_y_vals, z_vals, upper_fold_v_vals, color='purple', ls='--', linewidth= 3, label=r"$F^+$")
+        # plt.plot(lower_fold_y_vals, z_vals, lower_fold_v_vals, color='green', ls='--', linewidth= 3, label=r"$F^-$")
+        # # plt.plot(np.full(points, -0.05), z_vals, upper_fold_v_vals, color='purple', ls='--', linewidth= 3)
+        # # plt.plot(np.full(points, -0.05), z_vals, lower_fold_v_vals, color='green', ls='--', linewidth= 3)
+        # ax.scatter(initial_conditions[1], initial_conditions[2], initial_conditions[0], marker='o', color='pink', label='Initial Condition') 
+        # ax.plot(actual_sol.y[1], actual_sol.y[2], actual_sol.y[0], color='black', lw=2, label="Solution Trajectory")     
+        # if FSN_values and stable_inv_manifold:
+        #     ax.plot(y_separatrix_values, (stable_inv_manifold[0]).y[1], (stable_inv_manifold[0]).y[0], color='purple', label= "Canard Solution")
+        # ax.set_xlabel('y')
+        # ax.set_ylabel('z')
+        # ax.set_zlabel('v')
+        # ax.set_xlim(-0.05,0.3)
+        # ax.set_ylim(0,0.3)
+        # ax.set_zlim(-1, 0.5)
+        # # ax.legend(loc='upper right', fancybox=True)
+        # ax.legend(loc='upper left', bbox_to_anchor=(1, 1), fancybox=True)
+        # mplstyle.use('fast')
+        # #plt.savefig("critical manifold full plot")
+        # plt.show()
+        
+        # hold_z_init = plot_zinf(initial_conditions[0])
+        # v_vals = np.linspace(-0.9, 0.5, 1000)
+        # og_y_vals = plot_phi_I_zero(v_vals, hold_z_init)
 
-        slider.label.set_fontsize(12)
-        slider.valtext.set_fontweight("bold")
+        # plt.plot(og_y_vals, v_vals, color='grey')
+        # plt.scatter(plot_yinf(initial_conditions[0]), initial_conditions[0], color='red', zorder=10, s=20)
+        # plt.xlim(-0.1, 0.3)
+        # plt.ylim(-0.9, 0.4)
+        # plt.show()
 
-        def update(val):
-            I_current = slider.val
+        # hold_z_eq = plot_zinf(equilibria[0])
+        # v_vals = np.linspace(-0.9, 0.5, 1000)
+        # y_vals_2d = plot_phi(v_vals, hold_z_eq)
 
-            ax.clear()
-            ax.scatter(plot_yinf(og_equilibria[0]), plot_zinf(og_equilibria[0]), og_equilibria[0], color='pink', label="Initial Condition")
+        # plt.plot(y_vals_2d, v_vals, color='grey')
+        # plt.scatter(initial_conditions[1], initial_conditions[0], color='pink', zorder=10, s=20)
+        # plt.scatter(plot_yinf(equilibria[0]), equilibria[0], color='red', zorder=10, s=20)
+        # plt.plot(actual_sol.y[1], actual_sol.y[0], color='black')
+        # plt.xlim(-0.05, 0.25)
+        # plt.ylim(-0.9, 0.4)
+        # plt.xlabel("y")
+        # plt.ylabel('v')
+        # plt.show()
 
-            current_phi = phi_subs_no_I.subs(I, I_current)
-            plot_current_phi = sp.lambdify((v,z), current_phi)
-            current_equilibria = util.find_equilibria(eq_curve_subs, v, eq_guesses, I_current)
-            current_folds = util.find_equilibria(eq_fold_subs, v, fold_guesses, I_current)
-            current_fold_proj = compute_projected_folds(current_folds, I_current)
-            current_fall = np.linspace(current_folds[0], current_fold_proj[0], points)
-            current_jump = np.linspace(current_folds[1], current_fold_proj[1], points)
-            transient_sols = patch_flow(current_equilibria[0], initial_conditions, plot_current_phi, current_fold_proj, current_folds, current_jump, current_fall, I_current)
+        # fig, ax1 = plt.subplots()
+        # ax1.scatter(initial_conditions[1], initial_conditions[0], color='pink', zorder=10, s=20)
+        # ax1.set_xlim(-0.05, 0.25)
+        # ax1.set_ylim(-0.9, 0.4)
+        # ax1.set_xlabel("y")
+        # ax1.set_ylabel("v")
 
+        # # Prepare line for the solution
+        # solution_line, = ax1.plot([], [], color='black', lw=2)
+        # critical_manifold, = ax1.plot(og_y_vals, v_vals, color='grey')
 
-            FSN_val_changing = FSN_eq_subs.subs(v, current_folds[1]) if current_folds else None
-            if FSN_val_changing is not None:
-                FSN_val_changing = FSN_val_changing.subs(I, I_current)
-                current_FSN = sp.solve(FSN_val_changing, z)
-            else:
-                current_FSN = None
+        # # Initialize function for FuncAnimation
+        # def init():
+        #     solution_line.set_data([], [])
+        #     critical_manifold.set_data(og_y_vals, v_vals)
             
-            y_new = plot_current_phi(v_vals, z_vals)
-            y_new = np.where((y_new >= 0) & (y_new <= 0.3), y_new, np.nan)
+        #     return solution_line, critical_manifold
+
+        # # Update function for each frame
+        # def update(frame):
+        #     idx = frame_indices[frame]
+        #     solution_line.set_data(actual_sol.y[1][:idx], actual_sol.y[0][:idx])
+
+        #     if actual_sol.t[idx] > 2000:
+        #         critical_manifold.set_data(y_vals_2d, v_vals)
             
-            ax.plot_surface(y_new, z_vals, v_vals, label='Critical manifold', color='sandybrown', alpha=0.8)
+        #     return solution_line, critical_manifold
 
-            # Update Equilibria
-            if current_equilibria:
-                y_new = np.atleast_1d(plot_yinf(current_equilibria[0]))
-                z_new = np.atleast_1d(plot_zinf(current_equilibria[0]))
-                v_new = np.atleast_1d(current_equilibria[0])
-                ax.scatter(y_new, z_new, v_new, color='red', label='Equilibria')
-            else:
-                pass
+        # # Create the animation
+        # anim = animation.FuncAnimation(fig, update, frames=len(frame_indices), init_func=init, blit=True, interval=10)
 
-            # Update the fold lines, and projected fold lines
-            if current_folds:                
-                y_upper_fold = plot_current_phi(current_folds[0], Z_vals)
-                y_upper_fold = np.where((y_upper_fold >= 0) & (y_upper_fold <= 0.3), y_upper_fold, np.nan)
-                y_lower_fold = plot_current_phi(current_folds[1], Z_vals)
-                y_lower_fold = np.where((y_lower_fold >= 0) & (y_lower_fold <= 0.3), y_lower_fold, np.nan)
+        # # writer = animation.PillowWriter(fps=50)
+        # # anim.save("one-spike-phase.gif", writer=writer)
+        # plt.show()
 
-                ax.plot(y_lower_fold, Z_vals, current_folds[1], color='black', label='Lower Fold', lw=2, ls='--')
-                ax.plot(y_upper_fold, Z_vals, current_folds[0], color='black', label='Upper Fold', lw=2, ls='--')
-                ax.plot(y_lower_fold, Z_vals, current_fold_proj[1], color='darkblue', ls = '--', linewidth =2, label= "Projected Lower fold")   
-                ax.plot(y_upper_fold, Z_vals, current_fold_proj[0], color='darkblue', ls = '--', linewidth =2, label= "Projected Upper fold")
-                ax.plot(transient_sols[1], transient_sols[2], transient_sols[0], color='darkmagenta', linewidth=1.5, alpha=1, label="Solution")
-            else:
-                pass
+        # v_values = np.linspace(-0.9, lower_fold_v_val, points)
+        # z_values = np.linspace(0, 0.3, points)
+        # # now we have z values, and y values we want the v values (I think)
+        # for z_val in z_values: 
+        #     for v_val in v_values:
+        #         if math.isclose(plot_phi(upper_fold_v_val, z_val), plot_phi(v_val, z_val), abs_tol=0.001):
+        #             if not math.isclose(v_val, lower_fold_v_val, abs_tol = 0.0001):
+        #                 projected_v_val = v_val
 
-            # update the FSN
-            if current_FSN:
-                y_val = plot_current_phi(current_folds[1], current_FSN[0])
-                y_new = np.atleast_1d(np.float64(y_val))
-                z_new = np.atleast_1d(np.float64(current_FSN[0]))
-                v_new = np.atleast_1d(current_folds[1])
-                ax.scatter(y_new, z_new, v_new, color='green', label='Folded Sigularity')
-            else:
-                pass
+        # projected_fold = np.full(points, projected_v_val)
 
-            # --- Text update ---
-            I_text.set_text(f'Original system I = {I_current*kv*20:.1f}')
-            mplstyle.use('fast')
+        # lower_manifold = plot_phi(v_values, z_values)
 
-            fig.canvas.draw_idle()
+        # mask = (projected_v_val <= actual_sol.y[0]) & (actual_sol.y[0] <= lower_fold_v_val)
+        # phi_val = plot_phi(actual_sol.y[0], actual_sol.y[2])
 
-        slider.on_changed(update)
-        ax.legend()
-        plt.show()
+        # tolerance = 1e-2
+        # mask &= np.abs(actual_sol.y[1] - phi_val) < tolerance
+        # mask_diff = np.diff(mask.astype(int))
 
+        # transition_indices = np.where(mask_diff != 0)[0]
 
+        # transition_indices = transition_indices - 1
+        # transition_indices = transition_indices[transition_indices >= 0]
 
+        # bottom_branch_v = actual_sol.y[0].copy()
+        # bottom_branch_z = actual_sol.y[2].copy()
 
+        # bottom_branch_v[~mask] = np.nan
+        # bottom_branch_z[~mask] = np.nan
 
-
-
-
-
-
-
-
-
-
-    def move_old():
-        # Now I want to animate how the equilibria move.
-        eq_curve_no_I = eq_curve.subs(sympy_params_no_I)
-        fold_curve_no_I = eq_fold.subs(sympy_params_no_I)
-        FSN_eq_no_I = FSN_eq.subs(sympy_params_no_I)
-
-        fig, ax = plt.subplots()
-
-        ax.set_xlim(-0.5, 0.5)     
-        ax.set_ylim(-1, 0.5)  
-        ax.set_xlabel('z')
-        ax.set_ylabel('v')
-        ax.set_title('Movement of Folds & Equilibria as Stimulus is Varied')
-        equilibria_scatter = ax.scatter([], [], c='red', s=15, zorder=5, label='Equilibria')
-        FSN_scatter = ax.scatter([], [], c='green', s=15, zorder=5, label='FSN')
-        plot_lower_fold, = ax.plot([],[], color='black', label='fold', lw=0.5)
-        plot_upper_fold, = ax.plot([],[], color='black', label='fold', lw=0.5)
-        I_text = ax.text(0.02, 0.98, '', transform=ax.transAxes, 
-                verticalalignment='top', fontsize=12,
-                bbox=dict(boxstyle='round', facecolor='white', alpha=0.8))
-
-        def update_data(frame):
-            I_current = I_stim + (frame*0.1)/(kv*20)
-            current_equilibria = util.find_equilibria(eq_curve_no_I, v, eq_guesses, I_current)
-            current_folds = util.find_equilibria(fold_curve_no_I, v, fold_guesses, I_current)
-            FSN_val_changing = FSN_eq_no_I.subs(v, current_folds[1])
-            FSN_val_changing = FSN_val_changing.subs(I, I_current)
-            current_FSN = sp.solve(FSN_val_changing, z)
-
-            #if we find equilibria, update the graph.
-            if current_equilibria:
-                # Calculate z values for each equilibrium
-                current_z_vals = []
-                for eq in current_equilibria:
-                    current_z_vals.append(float(plot_zinf(eq)))
-                    # Update scatter plot with new positions
-                plot_data = list(zip(current_z_vals, current_equilibria))
-                equilibria_scatter.set_offsets(plot_data)
-            else:
-                # No equilibria found
-                equilibria_scatter.set_offsets([])
+        # bottom_branch_v[transition_indices] = np.nan
+        # bottom_branch_z[transition_indices] = np.nan
             
-            if current_folds:
-                current_upper_fold = np.full(points, current_folds[0])
-                current_lower_fold = np.full(points, current_folds[1])
-                plot_upper_fold.set_data(z_vals, current_upper_fold)
-                plot_lower_fold.set_data(z_vals, current_lower_fold)
-
-            else:
-                plot_upper_fold.set_data([],[])
-                plot_lower_fold.set_data([],[])
-
-            #if we find a FSN, update the graph.
-            if current_FSN:
-                # the z value is the given value when solving, ans v value is the fold value. 
-                plot_data_FSN = [(current_FSN[0], current_folds[1])]
-                FSN_scatter.set_offsets(plot_data_FSN)
-            else:
-                # No equilibria found
-                FSN_scatter.set_offsets([])
-            
-            I_text.set_text(f'I = {I_current:.2f}')
-
-            return equilibria_scatter, plot_lower_fold, plot_upper_fold, I_text
-
-
-        anim = animation.FuncAnimation(fig = fig,
-                                       func = update_data,
-                                       frames=1000,
-                                       interval = 30)
-
-        plt.show()
-
-        fig, ax = plt.subplots()
-        plt.subplots_adjust(bottom=0.25)  # make space for slider
-
-        ax.set_xlim(-0.5, 0.5)
-        ax.set_ylim(-1, 0.5)
-        ax.set_xlabel('z')
-        ax.set_ylabel('v')
-        ax.set_title('Movement of Folds & Equilibria as Stimulus is Varied')
-        ax.plot(np.zeros(points), np.linspace(-1, 0.5, points), color ='blue', lw=0.5)
-
-        equilibria_scatter = ax.scatter([], [], c='red', s=15, zorder=5, label='Equilibria')
-        FSN_scatter = ax.scatter([], [], c='green', s=15, zorder=5, label='Folded Sigularity')
-        plot_lower_fold, = ax.plot([],[], color='black', label='Lower Fold', lw=1)
-        plot_upper_fold, = ax.plot([],[], color='black', label='Upper Fold', lw=1)
-        I_text = ax.text(0.02, 0.98, '', transform=ax.transAxes,
-                        verticalalignment='top', fontsize=12,
-                        bbox=dict(boxstyle='round', facecolor='white', alpha=0.8))
-
-        # alternate option for a slider:
-        ax_slider = plt.axes([0.2, 0.1, 0.65, 0.03])
-        slider = Slider(ax_slider, 'I', valmin=0.0, valmax=100/(kv*20), valinit=0.5, valstep=0.0001, facecolor="black", edgecolor="black")  
-
-        slider.label.set_fontsize(12)
-        slider.valtext.set_fontweight("bold")
-
-        # --- Update function ---
-        def update(val):
-            I_current = slider.val
-
-            current_equilibria = util.find_equilibria(eq_curve_no_I, v, eq_guesses, I_current)
-            current_folds = util.find_equilibria(fold_curve_no_I, v, fold_guesses, I_current)
-
-            FSN_val_changing = FSN_eq_no_I.subs(v, current_folds[1]) if current_folds else None
-            if FSN_val_changing is not None:
-                FSN_val_changing = FSN_val_changing.subs(I, I_current)
-                current_FSN = sp.solve(FSN_val_changing, z)
-            else:
-                current_FSN = None
-
-            # --- Equilibria update ---
-            if current_equilibria:
-                current_z_vals = [float(plot_zinf(eq)) for eq in current_equilibria]
-                plot_data = list(zip(current_z_vals, current_equilibria))
-                equilibria_scatter.set_offsets(plot_data)
-            else:
-                equilibria_scatter.set_offsets([])
-
-            # --- Folds update ---
-            if current_folds:
-                current_upper_fold = np.full(points, current_folds[0])
-                current_lower_fold = np.full(points, current_folds[1])
-                plot_upper_fold.set_data(z_vals, current_upper_fold)
-                plot_lower_fold.set_data(z_vals, current_lower_fold)
-            else:
-                plot_upper_fold.set_data([],[])
-                plot_lower_fold.set_data([],[])
-
-            # --- FSN update ---
-            if current_FSN:
-                plot_data_FSN = [(current_FSN[0], current_folds[1])]
-                FSN_scatter.set_offsets(plot_data_FSN)
-            else:
-                FSN_scatter.set_offsets([])
-
-            # --- Text update ---
-            I_text.set_text(f'Original system I = {I_current*kv*20:.1f}')
-
-            fig.canvas.draw_idle()  # redraw
-
-            slider.on_changed(update)
-            ax.legend()
-            plt.show()
+        # if FSN_values:
+        #     if stable_inv_manifold:
+        #         plt.plot((stable_inv_manifold[0]).y[1], (stable_inv_manifold[0]).y[0], color='purple', label= "Canard solution")
+        #     for eq in equilibria:
+        #         plt.scatter(plot_zinf(eq), eq, marker='o', color='red', label="True Equilibrium", zorder=10)
+        #     plt.plot([0, 0.3], [lower_fold_v_val, lower_fold_v_val], color='green', ls='--', label=r"$F^-$")
+        #     plt.plot(z_values, projected_fold, color='black', ls='--', label=r"Projected $F^+$")
+        #     plt.plot(bottom_branch_z, bottom_branch_v, color='black')
+        #     plt.ylabel('v')
+        #     plt.xlabel('z')
+        #     plt.ylim(-0.9, -0.3)
+        #     plt.xlim(0.0, 0.3)
+        #     plt.title(r"Flow on lower stable branch $S^-$ of $M$")
+        #     plt.legend(loc="upper right")
+        #     plt.grid()
+        #     plt.show()
